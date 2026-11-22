@@ -24,7 +24,7 @@ export async function registerMessageRoutes(app:FastifyInstance){
   if(!Number.isSafeInteger(cid)||cid<=0)return reply.code(400).send({error:"invalid_id"});
   if(query.length<2)return {items:[]};
   const member=db.prepare("SELECT joined_at FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,auth.user_id) as {joined_at:string}|undefined;if(!member)return reply.code(404).send({error:"conversation_not_found"});
-  const ftsQuery=query.split(/\s+/).filter(Boolean).map(term=>"\""+term.replace(/"/g,"\"\"")+"\"").join(" AND ");const rows=db.prepare("SELECT m.id,m.conversation_id,m.sender_id,m.client_id,m.kind,m.body,m.created_at FROM messages_fts f JOIN messages m ON m.id=f.rowid WHERE messages_fts MATCH ? AND m.conversation_id=? AND m.created_at>=? AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 50").all(ftsQuery,cid,member.joined_at) as Record<string,unknown>[];return {items:rows};
+  try{const ftsQuery=query.split(/\s+/).filter(Boolean).map(term=>"\""+term.replace(/"/g,"\"\"")+"\"").join(" AND ");const rows=db.prepare("SELECT m.id,m.conversation_id,m.sender_id,m.client_id,m.kind,m.body,m.created_at FROM messages_fts f JOIN messages m ON m.id=f.rowid WHERE messages_fts MATCH ? AND m.conversation_id=? AND m.created_at>=? AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 50").all(ftsQuery,cid,member.joined_at) as Record<string,unknown>[];return {items:rows};}catch{return reply.code(400).send({error:"invalid_search"});}
  });
  app.get("/api/conversations/:id/messages",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
