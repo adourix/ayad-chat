@@ -51,7 +51,7 @@ You will be prompted for username, display name, and password. Usernames are 3â€
    ```bash
    mkdir -p data
    sudo chown -R 10001:10001 data
-   ``
+   ```
 4. Build and start:
    ```bash
    docker compose up -d --build
