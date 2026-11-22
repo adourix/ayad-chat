@@ -51,7 +51,7 @@ export default function App(){
     const message=event.message as Message;
     writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==message.client_id));
     if(message.conversation_id===useStore.getState().activeId){
-     useStore.setState(state=>({messages:mergeMessages(state.messages,[message])}));
+     useStore.setState(state=>({messages:mergeMessages(state.messages,[message])}));api.markRead(message.conversation_id).then(()=>refresh()).catch(()=>{});
     }
     refresh().catch(()=>{});
    }
