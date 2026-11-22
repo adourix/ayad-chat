@@ -33,7 +33,7 @@ export async function registerMessageRoutes(app:FastifyInstance){
   const cid=Number((request.params as {id:string}).id);
   const before=Number((request.query as {before?:string}).before??Number.MAX_SAFE_INTEGER);
   if(!Number.isSafeInteger(cid)||cid<=0||!Number.isSafeInteger(before)||before<=0)return reply.code(400).send({error:"invalid_pagination"});
-  const member=db.prepare("SELECT joined_at FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,auth.user_id) as {joined_at:string}|undefined;
+  const member=db.prepare("SELECT joined_at,clear_before_id FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,auth.user_id) as {joined_at:string;clear_before_id:number}|undefined;
   if(!member)return reply.code(404).send({error:"conversation_not_found"});
   const rows=db.prepare(`SELECT m.id,m.conversation_id,m.sender_id,m.client_id,m.kind,m.body,m.body_format,m.reply_to_id,m.created_at,m.edited_at,m.deleted_at,m.rev,
    a.id AS attachment_id,a.mime AS attachment_mime,a.size AS attachment_size,a.width AS attachment_width,a.height AS attachment_height,a.duration_ms AS attachment_duration
