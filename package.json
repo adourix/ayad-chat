@@ -8,7 +8,7 @@
     "dev:server": "pnpm --filter @duet/shared build && pnpm --filter @duet/server dev",
     "dev:web": "pnpm --filter @duet/web dev",
     "build": "pnpm --filter @duet/shared --filter @duet/server --filter @duet/web build",
-    "typecheck": "pnpm --filter @duet/shared --filter @duet/server --filter @duet/web typecheck",
+    "typecheck": "pnpm --filter @duet/shared build && pnpm --filter @duet/shared --filter @duet/server --filter @duet/web typecheck",
     "lint": "pnpm --filter @duet/shared --filter @duet/server --filter @duet/web lint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
