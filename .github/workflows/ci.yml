@@ -14,6 +14,8 @@ jobs:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm test
+      - run: node --check web/public/sw.js
+      - run: node -e "JSON.parse(require('fs').readFileSync('web/public/manifest.webmanifest'))"
       - run: pnpm typecheck
       - run: pnpm build
       - name: Build Docker image
