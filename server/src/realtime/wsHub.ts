@@ -13,6 +13,7 @@ const member=(cid:number,uid:number)=>db.prepare("SELECT joined_at,last_read_id,
 const broadcastConversation=(cid:number,payload:unknown,except?:Client)=>{for(const c of clients)if(c!==except&&member(cid,c.userId))send(c,payload);};
 const broadcastUser=(uid:number,payload:unknown,except?:Client)=>{for(const c of clients)if(c!==except&&c.userId===uid)send(c,payload);};
 const userOnline=(uid:number)=>[...clients].some(c=>c.userId===uid);
+const sessionActive=(sid:string)=>Boolean(db.prepare("SELECT 1 FROM sessions WHERE id=? AND revoked_at IS NULL AND expires_at>?").get(sid,new Date().toISOString()));
 function presence(uid:number,online:boolean,lastSeen:string|null){
  const rows=db.prepare("SELECT conversation_id FROM conversation_members WHERE user_id=?").all(uid) as {conversation_id:number}[];
  for(const row of rows)broadcastConversation(row.conversation_id,{t:"presence",user_id:uid,online,last_seen_at:lastSeen});
@@ -31,7 +32,7 @@ function hydrate(record:Record<string,unknown>|undefined){
  return {...base,attachment:{id:attachmentId,mime:record.attachment_mime,size:record.attachment_size,width:record.attachment_width??null,height:record.attachment_height??null,duration_ms:record.attachment_duration??null,url:`/api/media/${attachmentId}`}};
 }
 export function attachWebSocket(app:FastifyInstance){
- const wss=new WebSocketServer({noServer:true,maxPayload:16*1024});
+ const wss=new WebSocketServer({noServer:true,maxPayload:16*1024});const sessionSweep=setInterval(()=>{for(const client of clients)if(!sessionActive(client.sessionId))client.socket.close(1008,"session expired");},60_000);sessionSweep.unref();
  app.server.on("upgrade",(req,socket,head)=>{
   const origin=req.headers.origin;if(!origin||!config.allowedOrigins.has(origin)){socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");socket.destroy();return;}
   const token=parseCookie(req.headers.cookie,config.SESSION_COOKIE_NAME);const session=token?findSession(token):undefined;
@@ -115,5 +116,5 @@ export function attachWebSocket(app:FastifyInstance){
   });
   socket.on("error",()=>clients.delete(client));
  });
- app.addHook("onClose",async()=>{for(const c of clients)c.socket.close(1001,"Server shutdown");wss.close();});
+ app.addHook("onClose",async()=>{clearInterval(sessionSweep);for(const c of clients)c.socket.close(1001,"Server shutdown");wss.close();});
 }
