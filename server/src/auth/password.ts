@@ -6,5 +6,5 @@ export async function verifyPassword(hash: string, password: string) {
   try { return await argon2.verify(hash, password); } catch { return false; }
 }
 export function validPassword(password: string) {
-  return password.length >= 12 && password.length <= 128;
+  return password.length >= 8 && password.length <= 128;
 }
