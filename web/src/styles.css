@@ -216,3 +216,8 @@ html,body,#root,.messenger,.chat-pane,.sidebar,.message-list,.chat-header,.compo
 .image-lightbox{cursor:zoom-out!important;z-index:9999!important}.image-lightbox img{cursor:default!important}
 .message-receipt{display:inline-block!important;letter-spacing:-1px!important;font-size:13px!important;line-height:1!important;text-shadow:0 0 1px currentColor!important;opacity:1!important}
 .message-receipt.receipt-read{color:#42d883!important}.message-receipt.receipt-delivered{color:#d0d0d0!important}.message-receipt.receipt-sent{color:#888!important}
+
+/* Desktop chat header: prevent last-seen text from wrapping or overflowing */
+.chat-header{min-width:0;overflow:hidden;gap:14px}.chat-header>.avatar{flex:0 0 48px}.chat-heading{flex:1 1 auto;min-width:0;overflow:hidden}.chat-heading .chat-title-button{display:block;min-width:0;max-width:100%;overflow:hidden;text-align:left}.chat-heading .chat-title-button strong{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chat-heading>span{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;font-size:12px!important;margin-top:1px}.chat-header>.icon-button:last-child{flex:0 0 40px;width:40px;min-width:40px}.presence-online{color:#6bd49a!important}.presence-offline{color:#929292!important}
+@media(min-width:681px) and (max-width:1100px){.chat-header{padding:0 16px;gap:10px}.chat-heading>span{font-size:11px!important}.chat-header>.avatar{width:42px;height:42px;flex-basis:42px}}
+@media(max-width:680px){.chat-header{overflow:visible}.chat-heading>span{font-size:11px!important;max-width:60vw}}
