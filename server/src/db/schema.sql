@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS conversation_members (
   joined_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   last_delivered_id INTEGER NOT NULL DEFAULT 0,
   last_read_id INTEGER NOT NULL DEFAULT 0,
+  clear_before_id INTEGER NOT NULL DEFAULT 0,
   muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1)),
   archived_at TEXT,
   last_seen_at TEXT,
