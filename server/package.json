@@ -14,7 +14,7 @@
   "dependencies": {
     "@duet/shared": "workspace:*",
     "@fastify/cookie": "^11.0.2",
-    "@fastify/helmet": "^12.1.0",
+    "@fastify/helmet": "^13.2.0",
     "@fastify/rate-limit": "^10.2.1",
     "@fastify/static": "^8.2.0",
     "argon2": "^0.41.1",
