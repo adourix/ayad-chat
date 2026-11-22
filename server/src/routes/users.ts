@@ -41,7 +41,8 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const auth = await authenticate(request);
     if (!auth) return reply.code(401).send({ error: "unauthorized" });
     const parsed = passwordSchema.safeParse(request.body);
-    if (!parsed.success || !validPassword(parsed.data?.new_password ?? "")) return reply.code(400).send({ error: "invalid_input" });
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_input" });
+    if (!validPassword(parsed.data.new_password)) return reply.code(400).send({ error: "invalid_input" });
     const row = db.prepare("SELECT password_hash FROM users WHERE id=?").get(auth.user_id) as { password_hash: string } | undefined;
     if (!row || !(await verifyPassword(row.password_hash, parsed.data.current_password))) return reply.code(401).send({ error: "current_password_incorrect" });
     const hash = await hashPassword(parsed.data.new_password);
