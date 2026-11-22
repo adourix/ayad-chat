@@ -58,7 +58,7 @@ export class ChatSocket {
     this.timer = window.setTimeout(() => this.open(), delay);
   }
   send(payload: unknown) { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(payload)); }
-  subscribe(id: number) { this.subscribed = id; this.send({ t: "conversation.subscribe", conversation_id: id }); }
+  subscribe(id: number) { if (this.subscribed && this.subscribed !== id) this.send({ t: "conversation.unsubscribe", conversation_id: this.subscribed }); this.subscribed = id; this.send({ t: "conversation.subscribe", conversation_id: id }); }
   unsubscribe(id: number) { if (this.subscribed === id) this.subscribed = undefined; this.send({ t: "conversation.unsubscribe", conversation_id: id }); }
   on(callback: (event: SocketEvent) => void) { this.callbacks.add(callback); return () => this.callbacks.delete(callback); }
   close() {
