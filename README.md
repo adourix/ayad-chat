@@ -42,7 +42,7 @@ The command prompts for username, display name, and password. Usernames may cont
    `mkdir -p data && sudo chown -R 10001:10001 data`
 3. Build and start: `docker compose up -d --build`
 4. Create users inside the running container:
-   `docker compose exec app node server/dist/cli/createUser.js` (the production image currently includes the CLI entrypoint only if the build outputs it; see setup notes before relying on this command).
+   `docker compose exec app node server/dist/cli/createUser.js`.
 5. Put nginx in front of the container with HTTPS and WebSocket proxying. Example: `deploy/nginx.conf`.
 
 ## Current status
