@@ -44,13 +44,13 @@ export default function App(){
   return()=>{unsubscribe();socket.close();socketRef.current=null;setSocketLive(false);};
  },[user?.id,addMessage,refresh,setSocketLive,setPresence,setPresenceSnapshot,setReceipt,markConversationRead]);
  useEffect(()=>{if(!activeId||!user||!socketRef.current)return;socketRef.current.subscribe(activeId);let alive=true;
- api.messages(activeId).then(result=>{if(!alive)return;const serverIds=new Set(result.messages.map(m=>m.client_id));const pending=readOutbox(user.id).filter(item=>item.conversation_id===activeId&&!serverIds.has(item.client_id)).map(item=>pendingMessage(item,user));setMessages(mergeMessages(result.messages,pending));if(result.messages.length)sendReceipt(activeId,result.messages[result.messages.length-1]?.id);}).catch(()=>{if(alive)setMessages([]);});
+ api.messages(activeId).then(result=>{if(!alive)return;const serverIds=new Set(result.messages.map(m=>m.client_id));const pending=readOutbox(user.id).filter(item=>item.conversation_id===activeId&&!serverIds.has(item.client_id)).map(item=>pendingMessage(item,user));setMessages(mergeMessages(result.messages,pending));if(result.messages.length)sendReceipt(activeId,result.messages[result.messages.length-1]?.id);markConversationRead(activeId);}).catch(()=>{if(alive)setMessages([]);});
  api.members(activeId).then(m=>{if(alive){setActiveMembers(m);m.filter(x=>x.id!==user.id).forEach(peer=>setReceipt({conversation_id:activeId,user_id:peer.id,delivered_up_to:peer.last_delivered_id??0,read_up_to:peer.last_read_id??0}));}}).catch(()=>{if(alive)setActiveMembers([]);});return()=>{alive=false;};
  },[activeId,user?.id,setMessages,markConversationRead]);
  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages,activeId]);
  async function signIn(){await refresh();setSessionLoading(false);setRoute("/");history.replaceState(null,"","/");}
  async function logout(){try{await api.logout();}catch{}socketRef.current?.close();setUser(null);setConversations([]);setActive(null);setRoute("/");history.replaceState(null,"","/");}
- function openConversation(id:number){if(useStore.getState().activeId===id){setMobileChat(true);return;}setActive(id);setMobileChat(true);markConversationRead(id);}
+ function openConversation(id:number){if(useStore.getState().activeId===id){setMobileChat(true);markConversationRead(id);return;}setActive(id);setMobileChat(true);markConversationRead(id);}
  async function createDirect(id:number){try{const result=await api.createDirect(id);await refresh();setActive(result.id);setMobileChat(true);}catch{}}
  function createGroup(id:number){refresh().then(()=>{setActive(id);setMobileChat(true);}).catch(()=>{});}
  function sendMessage(){const text=draft.trim();if(!text||!activeId||!user)return;const clientId=crypto.randomUUID(),createdAt=new Date().toISOString();const item:OutboxItem={conversation_id:activeId,client_id:clientId,body:text,created_at:createdAt,kind:"text"};writeOutbox(user.id,[...readOutbox(user.id),item]);addMessage(pendingMessage(item,user));setDraft("");socketRef.current?.send({t:"msg.send",conversation_id:activeId,client_id:clientId,body:text,kind:"text"});}
