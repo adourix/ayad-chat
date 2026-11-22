@@ -25,7 +25,7 @@ await registerUserRoutes(app);
 app.addHook("onRequest",async(request,reply)=>{
  if(request.method==="GET"||request.method==="HEAD"||request.url==="/healthz")return;
  const origin=request.headers.origin;
- if(origin&&!config.allowedOrigins.has(origin))return reply.code(403).send({error:"origin_not_allowed"});
+ if(!origin||!config.allowedOrigins.has(origin))return reply.code(403).send({error:"origin_not_allowed"});
 });
 if(config.NODE_ENV==="production"){
  await app.register(fastifyStatic,{root:resolve(process.cwd(),"web/dist"),prefix:"/",decorateReply:true});
