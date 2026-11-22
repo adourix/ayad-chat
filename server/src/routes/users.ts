@@ -9,6 +9,7 @@ import { hashPassword, verifyPassword, validPassword } from "../auth/password.js
 
 const avatarTypes=new Map([["image/jpeg","jpg"],["image/png","png"],["image/webp","webp"]]);
 const avatarDir=resolve(dirname(resolve(process.env.DATABASE_PATH||"./data/duet.db")),"media");
+function validAvatar(buffer:Buffer,mime:string){if(mime==="image/jpeg")return buffer.length>=3&&buffer[0]===0xff&&buffer[1]===0xd8&&buffer[2]===0xff;if(mime==="image/png")return buffer.length>=8&&buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));if(mime==="image/webp")return buffer.length>=12&&buffer.subarray(0,4).toString()==="RIFF"&&buffer.subarray(8,12).toString()==="WEBP";return false;}
 const accountSchema = z.object({
   username: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9_.-]+$/),
   display_name: z.string().trim().min(1).max(80),
@@ -30,10 +31,10 @@ export async function registerUserRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post("/api/users/me/avatar",async(request,reply)=>{
+  app.post("/api/users/me/avatar",{config:{rateLimit:{max:8,timeWindow:"1 hour"}}},async(request,reply)=>{
     const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
     const raw=request.headers["x-media-type"];const mime=typeof raw==="string"?raw.toLowerCase():"";const ext=avatarTypes.get(mime);if(!ext)return reply.code(415).send({error:"unsupported_media_type"});
-    const buffer=request.body as Buffer;if(!Buffer.isBuffer(buffer)||buffer.length===0)return reply.code(400).send({error:"empty_media"});if(buffer.length>5*1024*1024)return reply.code(413).send({error:"media_too_large"});
+    const buffer=request.body as Buffer;if(!Buffer.isBuffer(buffer)||buffer.length===0)return reply.code(400).send({error:"empty_media"});if(buffer.length>5*1024*1024)return reply.code(413).send({error:"media_too_large"});if(!validAvatar(buffer,mime))return reply.code(415).send({error:"invalid_media_signature"});
     await mkdir(avatarDir,{recursive:true});const key=randomUUID()+"."+ext;const file=join(avatarDir,key);try{await writeFile(file,buffer,{flag:"wx"});const inserted=db.prepare("INSERT INTO attachments(uploader_id,mime,size,storage_key) VALUES(?,?,?,?)").run(auth.user_id,mime,buffer.length,key);const id=Number(inserted.lastInsertRowid);db.prepare("UPDATE users SET avatar_attachment_id=? WHERE id=?").run(id,auth.user_id);return {avatar_url:"/api/media/"+id};}catch(error){await unlink(file).catch(()=>{});throw error;}
   });
   app.patch("/api/users/me", async (request, reply) => {
