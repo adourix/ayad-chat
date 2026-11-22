@@ -15,7 +15,7 @@ const accountSchema = z.object({
 });
 const passwordSchema = z.object({
   current_password: z.string().min(1).max(128),
-  new_password: z.string().min(12).max(128),
+  new_password: z.string().min(8).max(128,
 });
 
 export async function registerUserRoutes(app: FastifyInstance) {
