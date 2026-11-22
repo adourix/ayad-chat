@@ -182,3 +182,23 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
  .media-button,.send-button{width:35px;height:35px;flex-basis:35px}
 }
 @media(prefers-reduced-motion:reduce){.conversation-item,.icon-button,.send-button{transition:none}}
+
+/* Requested cleanup: pure black, no logo mark, clearer typography */
+:root{--bg:#000;--panel:#0a0a0a;--border:#222;--muted:#a0a0a0;--accent:#a5c4ad;color:#f2f2f2;background:#000;font-size:16px}
+html,body,#root,.messenger,.chat-pane,.sidebar,.message-list,.chat-header,.composer,.media-gallery{background-color:#000!important}
+.sidebar-header .brand-mark{display:none!important}
+.sidebar-header .brand{font-size:21px!important;letter-spacing:0!important}
+.sidebar,.chat-pane{background:#000!important}
+.sidebar-header,.chat-header,.profile,.composer{background:#080808!important;border-color:#242424!important}
+.list-heading{font-size:13px!important;color:#aaa!important}
+.conversation-item{min-height:76px!important}
+.conv-top strong{font-size:16px!important}
+.conv-top time,.conv-meta p{font-size:14px!important;color:#aaa!important}
+.unread-badge{font-size:12px!important;min-width:21px;height:21px!important}
+.chat-heading strong{font-size:17px!important}
+.chat-heading span{font-size:13px!important}
+.message-list{gap:17px!important}
+.bubble{font-size:16px!important;line-height:1.6!important;padding:13px 16px!important}
+.message time{font-size:12px!important}
+.composer textarea{font-size:16px!important}
+@media(max-width:680px){.sidebar-header .brand{font-size:22px!important}.conversation-item{min-height:80px!important}.conv-top strong{font-size:16px!important}.conv-meta p{font-size:14px!important}.chat-heading strong{font-size:17px!important}.chat-heading span{font-size:12px!important}.bubble{font-size:16px!important;padding:12px 15px!important}}
