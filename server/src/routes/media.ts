@@ -6,14 +6,19 @@ import {dirname,join,resolve} from "node:path";
 import {db} from "../db/client.js";
 import {authenticate} from "../auth/guards.js";
 const imageTypes=new Map([["image/jpeg","jpg"],["image/png","png"],["image/webp","webp"],["image/gif","gif"]]);
-const videoTypes=new Map([["video/mp4","mp4"],["video/webm","webm"]]);
+const videoTypes=new Map([["video/mp4","mp4"],["video/webm","webm"],["video/quicktime","mov"]]);
 const imageMax=8*1024*1024,videoMax=24*1024*1024;
 const mediaDir=resolve(dirname(resolve(process.env.DATABASE_PATH||"./data/duet.db")),"media");
+async function pruneOrphanMedia(){
+ const old=db.prepare("SELECT id,storage_key FROM attachments WHERE created_at<datetime('now','-1 day') AND NOT EXISTS(SELECT 1 FROM messages WHERE messages.attachment_id=attachments.id)").all() as {id:number;storage_key:string}[];
+ for(const row of old){await unlink(join(mediaDir,row.storage_key)).catch(()=>{});db.prepare("DELETE FROM attachments WHERE id=?").run(row.id);}
+}
 export async function registerMediaRoutes(app:FastifyInstance){
- await mkdir(mediaDir,{recursive:true});
+ await mkdir(mediaDir,{recursive:true});await pruneOrphanMedia();
  app.post("/api/media",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
-  const mime=(request.headers["x-media-type"]||request.headers["content-type"]||"").split(";")[0].trim().toLowerCase();
+  const headerMime=request.headers["x-media-type"];
+  const mime=(typeof headerMime==="string"?headerMime:request.headers["content-type"]||"").split(";")[0].trim().toLowerCase();
   const ext=imageTypes.get(mime)||videoTypes.get(mime);if(!ext)return reply.code(415).send({error:"unsupported_media_type"});
   const max=imageTypes.has(mime)?imageMax:videoMax;
   const declared=Number(request.headers["content-length"]||0);if(declared>max)return reply.code(413).send({error:"media_too_large"});
@@ -23,7 +28,7 @@ export async function registerMediaRoutes(app:FastifyInstance){
   try{
    await writeFile(fullPath,buffer,{flag:"wx"});
    const created=db.prepare("INSERT INTO attachments(uploader_id,mime,size,width,height,storage_key) VALUES(?,?,?,?,?,?)").run(auth.user_id,mime,size,safeWidth,safeHeight,key);
-   const id=Number(created.lastInsertRowid);
+   const id=Number(created.lastInsertrowid);
    return reply.code(201).send({id,mime,size,url:"/api/media/"+id});
   }catch(error){await unlink(fullPath).catch(()=>{});throw error;}
  });
