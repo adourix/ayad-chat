@@ -33,7 +33,7 @@ export async function registerConversationRoutes(app:FastifyInstance){
  app.post("/api/conversations/group",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
   const parsed=groupSchema.safeParse(request.body);if(!parsed.success)return reply.code(400).send({error:"invalid_input"});
-  const ids=[...new Set([...parsed.data.member_ids.filter(id=>id!==auth.user_id),auth.user_id)];if(ids.length<3)return reply.code(400).send({error:"group_requires_three_members"});
+  const ids=[...new Set([...parsed.data.member_ids.filter(id=>id!==auth.user_id),auth.user_id])];if(ids.length<3)return reply.code(400).send({error:"group_requires_three_members"});
   const users=db.prepare("SELECT id FROM users WHERE id IN ("+ids.map(()=>"?").join(",")+")").all(...ids) as {id:number}[];if(users.length!==ids.length)return reply.code(400).send({error:"unknown_member"});
   const create=db.transaction(()=>{const row=db.prepare("INSERT INTO conversations(type,title,created_by) VALUES('group',?,?)").run(parsed.data.title,auth.user_id);const cid=Number(row.lastInsertRowid);const add=db.prepare("INSERT INTO conversation_members(conversation_id,user_id,role) VALUES(?,?,?)");for(const id of ids)add.run(cid,id,id===auth.user_id?"owner":"member");return cid;});
   return reply.code(201).send({id:create(),created:true});
