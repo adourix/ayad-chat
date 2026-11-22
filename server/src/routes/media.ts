@@ -10,7 +10,7 @@ const videoTypes=new Map([["video/mp4","mp4"],["video/webm","webm"],["video/quic
 const imageMax=8*1024*1024,videoMax=24*1024*1024;
 const mediaDir=resolve(dirname(resolve(process.env.DATABASE_PATH||"./data/duet.db")),"media");
 async function pruneOrphanMedia(){
- const old=db.prepare("SELECT id,storage_key FROM attachments WHERE created_at<datetime('now','-1 day') AND NOT EXISTS(SELECT 1 FROM messages WHERE messages.attachment_id=attachments.id)").all() as {id:number;storage_key:string}[];
+ const old=db.prepare("SELECT id,storage_key FROM attachments WHERE created_at<datetime('now','-1 day') AND NOT EXISTS(SELECT 1 FROM messages WHERE messages.attachment_id=attachments.id) AND NOT EXISTS(SELECT 1 FROM users WHERE users.avatar_attachment_id=attachments.id)").all() as {id:number;storage_key:string}[];
  for(const row of old){await unlink(join(mediaDir,row.storage_key)).catch(()=>{});db.prepare("DELETE FROM attachments WHERE id=?").run(row.id);}
 }
 export async function registerMediaRoutes(app:FastifyInstance){
