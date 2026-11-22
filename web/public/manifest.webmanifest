@@ -1,11 +1,13 @@
 {
-  "name": "Duet — Private Messaging",
-  "short_name": "Duet",
-  "description": "A private space for your conversations.",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "background_color": "#0f1012",
-  "theme_color": "#0f1012",
-  "icons": []
+  "name":"Duet — Private Messaging",
+  "short_name":"Duet",
+  "description":"A private space for your conversations.",
+  "start_url":"/",
+  "scope":"/",
+  "display":"standalone",
+  "background_color":"#0f1012",
+  "theme_color":"#0f1012",
+  "icons":[
+    {"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
+  ]
 }
