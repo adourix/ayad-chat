@@ -71,7 +71,7 @@ export default function App(){
    if(!alive)return;
    const serverIds=new Set(result.messages.map(m=>m.client_id));
    const pending=readOutbox(user.id).filter(item=>item.conversation_id===activeId&&!serverIds.has(item.client_id)).map(item=>pendingMessage(item,user));
-   setMessages(mergeMessages(result.messages,pending));
+   setMessages(mergeMessages(result.messages,pending));api.markRead(activeId).then(()=>refresh()).catch(()=>{});
   }).catch(()=>{if(alive)setMessages([]);});
   return()=>{alive=false;};
  },[activeId,user?.id,setMessages]);
