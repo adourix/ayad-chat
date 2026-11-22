@@ -40,8 +40,8 @@ export async function registerConversationRoutes(app:FastifyInstance){
  app.get("/api/conversations/:id/pin",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
   const cid=Number((request.params as {id:string}).id);if(!Number.isSafeInteger(cid)||cid<=0)return reply.code(400).send({error:"invalid_id"});
-  if(!db.prepare("SELECT 1 FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,auth.user_id))return reply.code(404).send({error:"conversation_not_found"});
-  const row=db.prepare("SELECT m.*,a.id AS attachment_id,a.mime AS attachment_mime,a.size AS attachment_size,a.width AS attachment_width,a.height AS attachment_height,a.duration_ms AS attachment_duration FROM conversation_pins p JOIN messages m ON m.id=p.message_id LEFT JOIN attachments a ON a.id=m.attachment_id WHERE p.conversation_id=?").get(cid) as Record<string,unknown>|undefined;
+  const pinMember=db.prepare("SELECT clear_before_id FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,auth.user_id) as {clear_before_id:number}|undefined;if(!pinMember)return reply.code(404).send({error:"conversation_not_found"});
+  const row=db.prepare("SELECT m.*,a.id AS attachment_id,a.mime AS attachment_mime,a.size AS attachment_size,a.width AS attachment_width,a.height AS attachment_height,a.duration_ms AS attachment_duration FROM conversation_pins p JOIN messages m ON m.id=p.message_id LEFT JOIN attachments a ON a.id=m.attachment_id WHERE p.conversation_id=? AND m.id>?").get(cid,pinMember.clear_before_id) as Record<string,unknown>|undefined;
   if(!row)return {message:null};
   const attachmentId=row.attachment_id as number|undefined;
   const reactions=db.prepare("SELECT user_id,emoji FROM reactions WHERE message_id=?").all(Number(row.id));
