@@ -26,7 +26,7 @@ export async function registerConversationRoutes(app:FastifyInstance){
   const parsed=directSchema.safeParse(request.body);if(!parsed.success||parsed.data.user_id===auth.user_id)return reply.code(400).send({error:"invalid_input"});
   if(!db.prepare("SELECT id FROM users WHERE id=?").get(parsed.data.user_id))return reply.code(404).send({error:"user_not_found"});
   const pair=[auth.user_id,parsed.data.user_id].sort((a,b)=>a-b);const key=pair.join(":");
-  const existing=db.prepare("SELECT id FROM conversations WHERE direct_key=?").get(key) as {id:number}|undefined;if(existing)return {id:existing.id,created:false};
+  const existing=db.prepare("SELECT id FROM conversations WHERE direct_key=?").get(key) as {id:number}|undefined;if(existing){db.prepare("UPDATE conversation_members SET archived_at=NULL WHERE conversation_id=? AND user_id=?").run(existing.id,auth.user_id);return {id:existing.id,created:false};}
   const create=db.transaction(()=>{const row=db.prepare("INSERT INTO conversations(type,created_by,direct_key) VALUES('direct',?,?)").run(auth.user_id,key);const cid=Number(row.lastInsertRowid);const add=db.prepare("INSERT INTO conversation_members(conversation_id,user_id,role) VALUES(?,?,?)");add.run(cid,auth.user_id,"member");add.run(cid,parsed.data.user_id,"member");return cid;});
   try{return reply.code(201).send({id:create(),created:true});}catch{const raced=db.prepare("SELECT id FROM conversations WHERE direct_key=?").get(key) as {id:number}|undefined;if(raced)return {id:raced.id,created:false};throw new Error("direct_create_failed");}
  });
