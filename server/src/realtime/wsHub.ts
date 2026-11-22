@@ -80,7 +80,7 @@ export function attachWebSocket(app:FastifyInstance){
     const recipients=db.prepare("SELECT user_id FROM conversation_members WHERE conversation_id=? AND user_id<>?").all(msg.conversation_id,client.userId) as {user_id:number}[];
     for(const recipient of recipients)if(userOnline(recipient.user_id)){
      db.prepare("UPDATE conversation_members SET last_delivered_id=MAX(last_delivered_id,?) WHERE conversation_id=? AND user_id=?").run(result.id,msg.conversation_id,recipient.user_id);
-     broadcastConversation(msg.conversation_id,{t:"receipt",conversation_id:msg.conversation_id,user_id:recipient.user_id,delivered_up_to:result.id},client);
+     broadcastConversation(msg.conversation_id,{t:"receipt",conversation_id:msg.conversation_id,user_id:recipient.user_id,delivered_up_to:result.id});
     }
    }
   });
