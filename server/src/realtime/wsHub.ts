@@ -62,9 +62,11 @@ export function attachWebSocket(app:FastifyInstance){
    if(msg.t==="conversation.unsubscribe"){client.subscribed.delete(msg.conversation_id);return;}
    if(msg.t==="receipt"){
     if(!member(msg.conversation_id,client.userId)){send(client,{t:"error",code:"forbidden"});return;}
-    if(msg.delivered_up_to){db.prepare("UPDATE conversation_members SET last_delivered_id=MAX(last_delivered_id,?) WHERE conversation_id=? AND user_id=?").run(msg.delivered_up_to,msg.conversation_id,client.userId);}
-    if(msg.read_up_to){db.prepare("UPDATE conversation_members SET last_read_id=MAX(last_read_id,?) WHERE conversation_id=? AND user_id=?").run(msg.read_up_to,msg.conversation_id,client.userId);}
-    broadcastConversation(msg.conversation_id,{t:"receipt",conversation_id:msg.conversation_id,user_id:client.userId,delivered_up_to:msg.delivered_up_to,read_up_to:msg.read_up_to});
+    const maxRow=db.prepare("SELECT COALESCE(MAX(id),0) AS id FROM messages WHERE conversation_id=?").get(msg.conversation_id) as {id:number};
+    const delivered=msg.delivered_up_to?Math.min(msg.delivered_up_to,maxRow.id):undefined,read=msg.read_up_to?Math.min(msg.read_up_to,maxRow.id):undefined;
+    if(delivered){db.prepare("UPDATE conversation_members SET last_delivered_id=MAX(last_delivered_id,?) WHERE conversation_id=? AND user_id=?").run(delivered,msg.conversation_id,client.userId);}
+    if(read){db.prepare("UPDATE conversation_members SET last_read_id=MAX(last_read_id,?) WHERE conversation_id=? AND user_id=?").run(read,msg.conversation_id,client.userId);}
+    broadcastConversation(msg.conversation_id,{t:"receipt",conversation_id:msg.conversation_id,user_id:client.userId,delivered_up_to:delivered,read_up_to:read});
     return;
    }
    if(msg.t==="msg.send"){
