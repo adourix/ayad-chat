@@ -231,3 +231,5 @@ html,body,#root,.messenger,.chat-pane,.sidebar,.message-list,.chat-header,.compo
 
 /* Pinned message and mute controls */
 .pinned-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;border-bottom:1px solid #2c3330;background:#1b211e;color:#a9b8b0;font-size:12px}.pinned-banner>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pinned-banner button{flex:0 0 auto;border:0;background:transparent;color:#9ca39f;padding:5px 8px}.message-actions button[title="Pin message"]{font-size:15px}.message-actions{flex-wrap:wrap}.message{min-width:0}.message time{white-space:nowrap}
+
+.muted-badge{flex:0 0 auto;color:#8e918f;font-size:10px;border:1px solid #343735;border-radius:5px;padding:2px 5px}.conv-top{min-width:0}.conv-top strong{min-width:0;flex:1}
