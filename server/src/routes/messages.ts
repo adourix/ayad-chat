@@ -2,7 +2,7 @@ import type {FastifyInstance} from "fastify";
 import {db} from "../db/client.js";
 import {authenticate} from "../auth/guards.js";
 const pageSize=50;
-function hydrate(rows:Record<string,unknown>[]){return rows.map(row=>row.attachment_id?{...row,attachment:{id:row.attachment_id,mime:row.attachment_mime,size:row.attachment_size,width:row.attachment_width??null,height:row.attachment_height??null,duration_ms:row.attachment_duration??null,url:"/api/media/"+row.attachment_id}}:row);}
+function hydrate(rows:Record<string,unknown>[]){return rows.map(row=>{const reactions=db.prepare("SELECT user_id,emoji FROM reactions WHERE message_id=? ORDER BY emoji").all(Number(row.id)) as {user_id:number;emoji:string}[];const base={...row,reactions};return row.attachment_id?{...base,attachment:{id:row.attachment_id,mime:row.attachment_mime,size:row.attachment_size,width:row.attachment_width??null,height:row.attachment_height??null,duration_ms:row.attachment_duration??null,url:"/api/media/"+row.attachment_id}}:base;});}
 export async function registerMessageRoutes(app:FastifyInstance){
  app.post("/api/conversations/:id/read",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
