@@ -1,6 +1,6 @@
-import type {SVGProps} from "react";
+import type {SVGProps,ReactNode} from "react";
 type IconName="plus"|"search"|"more"|"archive"|"volume"|"volume-off"|"trash"|"clear"|"settings"|"logout"|"back"|"media"|"restore"|"message"|"check"|"close";
-const paths:Record<IconName,React.ReactNode>={
+const paths:Record<IconName,ReactNode>={
 plus:<><path d="M12 5v14M5 12h14"/></>,
 search:<><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></>,
 more:<><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
