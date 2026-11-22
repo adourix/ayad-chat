@@ -22,7 +22,7 @@ export const clientEnvelopeSchema=z.discriminatedUnion("t",[
  z.object({t:z.literal("group.update"),conversation_id:conversationIdSchema,title:titleSchema.optional(),avatar_key:z.string().max(128).nullable().optional()}),
  z.object({t:z.literal("member.add"),conversation_id:conversationIdSchema,user_id:idSchema}),
  z.object({t:z.literal("member.remove"),conversation_id:conversationIdSchema,user_id:idSchema}),
- z.object({t:z.literal("msg.send"),conversation_id:conversationIdSchema,client_id:clientIdSchema,body:bodySchema,reply_to:idSchema.optional(),kind:z.enum(["text","image","video","file"]).default("text"),attachment_id:idSchema.optional()}),
+ z.object({t:z.literal("msg.send"),conversation_id:conversationIdSchema,client_id:clientIdSchema,body:bodySchema,reply_to:idSchema.optional(),kind:z.enum(["text","image","video","file"]).default("text"),attachment_id:idSchema.optional()}).superRefine((message,ctx)=>{if(message.kind==="text"&&!message.body.trim())ctx.addIssue({code:z.ZodIssueCode.custom,message:"text message cannot be empty",path:["body"]});}),
  z.object({t:z.literal("msg.edit"),conversation_id:conversationIdSchema,id:idSchema,body:z.string().min(1).max(8192)}),
  z.object({t:z.literal("msg.delete"),conversation_id:conversationIdSchema,id:idSchema}),
  z.object({t:z.literal("react"),conversation_id:conversationIdSchema,id:idSchema,emoji:z.string().max(32).nullable()}),
