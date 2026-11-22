@@ -18,7 +18,7 @@ export async function registerMessageRoutes(app:FastifyInstance){
   const rows=db.prepare(`SELECT m.id,m.conversation_id,m.sender_id,m.client_id,m.kind,m.created_at,a.id AS attachment_id,a.mime AS attachment_mime,a.size AS attachment_size,a.width AS attachment_width,a.height AS attachment_height,a.duration_ms AS attachment_duration FROM messages m JOIN attachments a ON a.id=m.attachment_id WHERE m.conversation_id=? AND m.created_at>=? AND m.kind IN ('image','video') AND m.deleted_at IS NULL ORDER BY m.id DESC`).all(cid,member.joined_at) as Record<string,unknown>[];
   return {items:rows.map(row=>({...row,attachment:{id:row.attachment_id,mime:row.attachment_mime,size:row.attachment_size,width:row.attachment_width??null,height:row.attachment_height??null,duration_ms:row.attachment_duration??null,url:"/api/media/"+row.attachment_id}}))};
  });
- app.get("/api/conversations/:id/search",async(request,reply)=>{
+ app.get("/api/conversations/:id/search",{config:{rateLimit:{max:40,timeWindow:"1 minute"}}},async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
   const cid=Number((request.params as {id:string}).id),query=String((request.query as {q?:string}).q??"").trim().slice(0,120);
   if(!Number.isSafeInteger(cid)||cid<=0)return reply.code(400).send({error:"invalid_id"});
