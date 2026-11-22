@@ -9,11 +9,11 @@ export async function registerConversationRoutes(app:FastifyInstance){
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
   return db.prepare(`SELECT c.id,c.type,
     CASE WHEN c.type='direct' THEN (SELECT u.display_name FROM conversation_members mx JOIN users u ON u.id=mx.user_id WHERE mx.conversation_id=c.id AND mx.user_id<>? LIMIT 1) ELSE c.title END AS title,
-    c.avatar_key,c.updated_at,c.last_message_id,m.role,m.joined_at,m.last_read_id,m.last_delivered_id,m.muted,m.archived_at,
+    c.avatar_key,c.updated_at,c.last_message_id,m.role,m.joined_at,m.last_read_id,m.last_delivered_id,m.muted,m.archived_at,\n    (SELECT COUNT(*) FROM messages um WHERE um.conversation_id=c.id AND um.id>m.last_read_id AND um.sender_id<>? AND um.created_at>=m.joined_at AND um.deleted_at IS NULL) AS unread_count,
     (SELECT body FROM messages x WHERE x.id=c.last_message_id AND x.deleted_at IS NULL) AS last_message_body,
     (SELECT created_at FROM messages x WHERE x.id=c.last_message_id) AS last_message_at
     FROM conversations c JOIN conversation_members m ON m.conversation_id=c.id
-    WHERE m.user_id=? AND m.archived_at IS NULL ORDER BY c.updated_at DESC`).all(auth.user_id,auth.user_id);
+    WHERE m.user_id=? AND m.archived_at IS NULL ORDER BY c.updated_at DESC`).all(auth.user_id,auth.user_id,auth.user_id);
  });
  app.get("/api/conversations/:id/members",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
