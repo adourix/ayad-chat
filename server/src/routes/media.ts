@@ -15,6 +15,8 @@ async function pruneOrphanMedia(){
 }
 export async function registerMediaRoutes(app:FastifyInstance){
  await mkdir(mediaDir,{recursive:true});await pruneOrphanMedia();
+ const cleanupTimer=setInterval(()=>{void pruneOrphanMedia().catch(()=>{});},24*60*60*1000);cleanupTimer.unref();
+ app.addHook("onClose",async()=>clearInterval(cleanupTimer));
  app.post("/api/media",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
   const headerMime=request.headers["x-media-type"],contentTypeHeader=request.headers["content-type"];
