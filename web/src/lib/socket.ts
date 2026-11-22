@@ -40,7 +40,7 @@ export class ChatSocket {
             const current = Number(localStorage.getItem("duet_rev") || 0);
             localStorage.setItem("duet_rev", String(Math.max(current, maxRevision)));
           }
-          if (batch.length >= 500) window.setTimeout(() => this.send({t:"hello",protocol:1,since_rev:Number(localStorage.getItem("duet_rev")||0}),0);
+          if (batch.length >= 500) { window.setTimeout(() => { this.send({ t: "hello", protocol: 1, since_rev: Number(localStorage.getItem("duet_rev") || 0) }); }, 0); }
         }
         this.emit(data);
       } catch { /* Ignore malformed frames. */ }
