@@ -28,7 +28,7 @@ export async function registerMediaRoutes(app:FastifyInstance){
   try{
    await writeFile(fullPath,buffer,{flag:"wx"});
    const created=db.prepare("INSERT INTO attachments(uploader_id,mime,size,width,height,storage_key) VALUES(?,?,?,?,?,?)").run(auth.user_id,mime,size,safeWidth,safeHeight,key);
-   const id=Number(created.lastInsertrowid);
+   const id=Number(created.lastInsertRowid);
    return reply.code(201).send({id,mime,size,url:"/api/media/"+id});
   }catch(error){await unlink(fullPath).catch(()=>{});throw error;}
  });
