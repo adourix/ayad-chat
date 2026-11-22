@@ -37,7 +37,7 @@ export default function App(){
    if(event.t==="hello.ok")setSocketLive(true);
    if(event.t==="msg.ack"){
     const ack=event as unknown as {client_id:string;id:number;created_at:string;rev:number};
-    useStore.setState(state=>({messages:state.messages.map(m=>m.client_id===ack.client_id?{...m,id:ack.id,created_at:ack.created_at,rev:ack.rev}:m)}));
+    useStore.setState(state=>({messages:state.messages.map(m=>m.client_id===ack.client_id?{...m,id:ack.id,created_at:ack.created_at,rev:ack.rev}:m).sort((a,b)=>(a.rev===0?Number.MAX_SAFE_INTEGER:a.id)-(b.rev===0?Number.MAX_SAFE_INTEGER:b.id))}));
     writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==ack.client_id));
    }
    if(event.t==="sync.batch"&&Array.isArray(event.messages)){
