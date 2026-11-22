@@ -1,5 +1,5 @@
 export type User={id:number;username:string;display_name:string;avatar_url?:string|null};
-export type Conversation={id:number;type:'direct'|'group';title:string|null;updated_at:string;last_message_id:number|null;role:string;joined_at:string;last_read_id:number;last_delivered_id:number;muted:number;archived_at:string|null;last_message_body:string|null;last_message_at:string|null;unread_count:number};
+export type Conversation={id:number;type:'direct'|'group';title:string|null;updated_at:string;last_message_id:number|null;role:string;joined_at:string;last_read_id:number;last_delivered_id:number;muted:number;archived_at:string|null;last_message_body:string|null;last_message_at:string|null;unread_count:number;avatar_url?:string|null};
 export type Attachment={id:number;mime:string;size:number;width:number|null;height:number|null;duration_ms:number|null;url:string;thumb_url?:string|null};
 export type Message={id:number;conversation_id:number;sender_id:number;client_id:string;kind:string;body:string;body_format:number;reply_to_id:number|null;attachment?:Attachment|null;created_at:string;edited_at:string|null;deleted_at:string|null;rev:number};
 export type Presence={user_id:number;online:boolean;last_seen_at:string|null};
