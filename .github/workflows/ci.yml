@@ -14,4 +14,4 @@ jobs:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm typecheck
-      - run: pnpm build
+      - run: pnpm build\n      - name: Build Docker image\n        run: docker build -t duet:ci .
