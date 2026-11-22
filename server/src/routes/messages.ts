@@ -3,7 +3,7 @@ import {db} from "../db/client.js";
 import {authenticate} from "../auth/guards.js";
 const pageSize=50;
 export async function registerMessageRoutes(app:FastifyInstance){
- app.get("/api/conversations/:id/messages",async(request,reply)=>{
+ app.post("/api/conversations/:id/read",async(request,reply)=>{\n  const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});\n  const cid=Number((request.params as {id:string}).id);if(!Number.isSafeInteger(cid)||cid<=0)return reply.code(400).send({error:"invalid_id"});\n  const member=db.prepare("SELECT joined_at FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,auth.user_id) as {joined_at:string}|undefined;if(!member)return reply.code(404).send({error:"conversation_not_found"});\n  const latest=db.prepare("SELECT COALESCE(MAX(id),0) AS id FROM messages WHERE conversation_id=? AND created_at>=?").get(cid,member.joined_at) as {id:number};\n  db.prepare("UPDATE conversation_members SET last_read_id=MAX(last_read_id,?) WHERE conversation_id=? AND user_id=?").run(latest.id,cid,auth.user_id);return {read_up_to:latest.id};\n });\n app.get("/api/conversations/:id/messages",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
   const cid=Number((request.params as {id:string}).id);
   const before=Number((request.query as {before?:string}).before??Number.MAX_SAFE_INTEGER);
