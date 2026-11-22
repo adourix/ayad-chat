@@ -1,4 +1,5 @@
-import {useState} from "react";\nimport type {FormEvent} from "react";
+import {useState} from "react";
+import type {FormEvent} from "react";
 import type {User} from "../lib/api";
 import {api} from "../lib/api";
 
