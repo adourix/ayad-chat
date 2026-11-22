@@ -7,6 +7,8 @@ import { db } from "../db/client.js";
 import { authenticate } from "../auth/guards.js";
 import { hashPassword, verifyPassword, validPassword } from "../auth/password.js";
 
+const avatarTypes=new Map([["image/jpeg","jpg"],["image/png","png"],["image/webp","webp"]]);
+const avatarDir=resolve(dirname(resolve(process.env.DATABASE_PATH||"./data/duet.db")),"media");
 const accountSchema = z.object({
   username: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9_.-]+$/),
   display_name: z.string().trim().min(1).max(80),
