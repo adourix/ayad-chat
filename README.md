@@ -7,7 +7,10 @@ A private, self-hosted messenger for a small trusted group. Mobile-first and int
 - Private accounts created by CLI only (no public signup)
 - Argon2id password hashing and server-side sessions
 - Direct conversations and small groups (3–5 members)
-- Live text messaging over WebSocket
+- Live messaging over WebSocket with sent, delivered and read receipts
+- Online presence and last-seen status
+- Image and video sharing with private media endpoints
+- Client-side image resizing and WebP compression
 - Persistent message history and reconnect synchronization
 - Pending-message outbox with idempotent retry
 - Unread counters and read watermarks
@@ -121,4 +124,6 @@ GitHub Actions checks:
 
 ## MVP scope / not included yet
 
-MVP focuses on private text conversations. Attachments/media, voice messages, message edit/delete, reactions, typing/presence, push notifications, multi-device read receipts, and end-to-end encryption are not implemented yet. Before relying on it for sensitive conversations, configure TLS, firewall, off-server backups, and test restore.
+Media storage policy: images are resized to a maximum 1600px edge and converted to WebP in the browser when possible (quality 78%); uploads are capped at 8 MB. GIFs are retained as-is. Videos (MP4, WebM, MOV) are capped at 24 MB and are not transcoded, keeping the server image small. Media files are stored separately from SQLite under `data/media/`; access requires a valid session and conversation membership. Unattached uploads are cleaned up after 24 hours on server startup.
+
+Voice messages, message edit/delete, reactions, typing indicators, push notifications, end-to-end encryption, and multi-device synchronization of read receipts are still outside the current scope. Before relying on it for sensitive conversations, configure TLS, firewall, off-server backups, and test restore.
