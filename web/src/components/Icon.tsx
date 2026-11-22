@@ -16,6 +16,7 @@ media:<><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9"
 restore:<><path d="M4 5h16v4H4z"/><path d="M6 9v10h12V9M9 13h6"/></>,
 message:<><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l2-3a7.5 7.5 0 1 1 13-4.5z"/></>,
 check:<path d="m5 12 4 4L19 6"/>,
-close:<path d="m6 6 12 12M18 6 6 18"/>,\npin:<><path d="M16 3l5 5-3 2-2 4-2-2-5 5-2-2 5-5-2-2 4-2z"/><path d="m7 17-4 4"/></>,\nreply:<path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3"/> ,\nedit:<><path d="M4 20h4l11-11a2.1 2.1 0 0 0-4-4L4 16v4z"/><path d="m13 7 4 4"/></>
+close:<path d="m6 6 12 12M18 6 6 18"/>,;
+pin:<><path d="M16 3l5 5-3 2-2 4-2-2-5 5-2-2 5-5-2-2 4-2z"/><path d="m7 17-4 4"/></>,\nreply:<path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v3"/> ,\nedit:<><path d="M4 20h4l11-11a2.1 2.1 0 0 0-4-4L4 16v4z"/><path d="m13 7 4 4"/></>
 };
 export default function Icon({name,size=18,className,...props}:{name:IconName;size?:number;className?:string}&SVGProps<SVGSVGElement>){return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>}
