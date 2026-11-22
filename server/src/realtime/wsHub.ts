@@ -60,7 +60,7 @@ export function attachWebSocket(app:FastifyInstance){
     const rows=db.prepare("SELECT messages.* FROM messages JOIN conversation_members cm ON cm.conversation_id=messages.conversation_id WHERE cm.user_id=? AND messages.rev>? AND messages.created_at>=cm.joined_at ORDER BY messages.rev LIMIT 500").all(client.userId,msg.since_rev);
     if(rows.length)send(client,{t:"sync.batch",messages:rows.map(row=>hydrate(row as Record<string,unknown>))});send(client,{t:"sync.done",server_rev:currentRevision()});return;
    }
-   if(msg.t==="conversation.subscribe"){if(!member(msg.conversation_id,client.userId)){send(client,{t:"error",code:"forbidden"});return;}client.subscribed.add(msg.conversation_id);send(client,{t:"conversation.subscribed",conversation_id:msg.conversation_id});return;}
+   if(msg.t==="conversation.subscribe"){if(!member(msg.conversation_id,client.userId)){send(client,{t:"error",code:"forbidden"});return;}client.subscribed.add(msg.conversation_id);send(client,{t:"conversation.subscribed",conversation_id:msg.conversation_id});const receiptSnapshot=db.prepare("SELECT user_id,last_delivered_id,last_read_id FROM conversation_members WHERE conversation_id=? AND user_id<>?").all(msg.conversation_id,client.userId) as {user_id:number;last_delivered_id:number;last_read_id:number}[];send(client,{t:"receipt.snapshot",conversation_id:msg.conversation_id,members:receiptSnapshot});return;}
    if(msg.t==="conversation.unsubscribe"){client.subscribed.delete(msg.conversation_id);return;}
    if(msg.t==="receipt"){
     if(!member(msg.conversation_id,client.userId)){send(client,{t:"error",code:"forbidden"});return;}
