@@ -1,21 +1,31 @@
 # Duet
 
-Private, self-hosted messaging for a small trusted group.
+A private, self-hosted messenger for a small trusted group.
+
+## Phase 1 foundation
+
+- Invite-only accounts created from the CLI (no public registration)
+- Argon2id password hashes and server-side sessions
+- Direct conversations and small groups (3–5 members)
+- WebSocket text messaging with message IDs and server revisions
+- Message history endpoint and reconnect synchronization
+- Client-side pending-message outbox with idempotent retries
+- Unread counts and read watermarks
+- Mobile-first chat shell and PWA offline static shell
+- SQLite WAL/FTS5 storage
+- Docker Compose deployment with production SPA serving
 
 ## Stack
 
-- React + TypeScript + Vite (SPA)
+- React + TypeScript + Vite
 - Node.js + Fastify + WebSocket
-- SQLite WAL + FTS5
+- SQLite WAL + FTS5 + Drizzle schema
 - Zod shared protocol
 - pnpm workspace monorepo
 
-## Requirements
-
-- Node.js 22 LTS
-- pnpm 10
-
 ## Development
+
+Requirements: Node.js 22 LTS and pnpm 10.
 
 ```bash
 pnpm install
@@ -23,28 +33,46 @@ pnpm dev
 ```
 
 Frontend: http://127.0.0.1:5173  
-Backend: http://127.0.0.1:3000/healthz
+Backend health: http://127.0.0.1:3000/healthz
 
-The shared package is built automatically before development starts.
-
-## Create the first account
+## Create accounts
 
 ```bash
 pnpm --filter @duet/server user:create
 ```
 
-The command prompts for username, display name, and password. Usernames may contain letters, numbers, dots, dashes, and underscores. Passwords must be at least 12 characters.
+You will be prompted for username, display name, and password. Usernames are 3–32 characters (letters, numbers, underscore, dot, dash). Passwords are 12–128 characters.
 
-## Deployment
+## Deploy
 
-1. Copy `.env.example` to `.env` and set your public HTTPS origin in `ALLOWED_ORIGINS`.
-2. Create the persistent data directory and make it writable by UID 10001:
-   `mkdir -p data && sudo chown -R 10001:10001 data`
-3. Build and start: `docker compose up -d --build`
-4. Create users inside the running container:
-   `docker compose exec app node server/dist/cli/createUser.js`.
-5. Put nginx in front of the container with HTTPS and WebSocket proxying. Example: `deploy/nginx.conf`.
+1. Copy `.env.example` to `.env`.
+2. Set `ALLOWED_ORIGINS` to your exact public HTTPS origin.
+3. Prepare persistent storage:
+   ```bash
+   mkdir -p data
+   sudo chown -R 10001:10001 data
+   ``
+4. Build and start:
+   ```bash
+   docker compose up -d --build
+   ```
+5. Create the first user:
+   ```bash
+   docker compose exec -it app node server/dist/cli/createUser.js
+   ```
+6. Configure host nginx using `deploy/nginx.conf` and provide TLS certificates. The example includes WebSocket proxying.
 
-## Current status
+The app container listens on port 3000, published only to host loopback (127.0.0.1).
 
-Foundation and initial messaging endpoints are being implemented. Authentication, conversation APIs, WebSocket send/receive, and UI are not yet considered production-ready until the CI build and integration checks pass.
+## CI checks
+
+GitHub Actions currently runs:
+- Protocol and database tests
+- TypeScript typecheck
+- Frontend/backend production builds
+- Docker image build
+- Service-worker syntax and manifest JSON validation
+
+## Not implemented yet
+
+Attachments, voice messages, message editing/deletion, reactions, typing/presence, push notifications, multi-device read receipts, and end-to-end encryption are future work. Phase 1 is not considered production-ready until runtime smoke tests, restore-tested backups, and TLS/domain configuration have been verified.
