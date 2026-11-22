@@ -11,7 +11,8 @@
     "typecheck": "pnpm --filter @duet/shared build && pnpm --filter @duet/shared --filter @duet/server --filter @duet/web typecheck",
     "lint": "pnpm --filter @duet/shared --filter @duet/server --filter @duet/web lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @duet/shared build && pnpm --filter @duet/shared test && pnpm --filter @duet/server test"
   },
   "devDependencies": {
     "prettier": "^3.5.3",
