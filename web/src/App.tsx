@@ -1,25 +1,24 @@
-const features = [
-  { label: "Private by design", detail: "A small, self-hosted space for the people who matter." },
-  { label: "Conversations, not noise", detail: "Direct chats and small groups in one calm place." },
-  { label: "Yours to host", detail: "Your server, your data, your control." },
-];
-export default function App() {
-  return (
-    <main className="shell">
-      <div className="ambient ambient-one" aria-hidden="true" />
-      <div className="ambient ambient-two" aria-hidden="true" />
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="Duet home"><span className="brand-mark">d.</span><span>duet</span></a>
-        <span className="topbar-note">A quieter kind of connection</span>
-      </header>
-      <section className="hero">
-        <div className="eyebrow"><span className="status-dot" /> YOUR PRIVATE SPACE</div>
-        <h1>Closer, without<br /><em>the noise.</em></h1>
-        <p className="lead">A thoughtful place for your conversations. Private by design, made for the people who matter.</p>
-        <a className="primary-link" href="/login">Enter your space <span aria-hidden="true">↗</span></a>
-        <div className="feature-row">{features.map((feature, i) => <article className="feature" key={feature.label}><span className="feature-index">0{i + 1}</span><h2>{feature.label}</h2><p>{feature.detail}</p></article>)}</div>
-      </section>
-      <footer className="footer"><span>DUET / PRIVATE MESSAGING</span><span>MADE FOR A FEW, NOT EVERYONE.</span></footer>
-    </main>
-  );
+import {useCallback,useEffect,useRef,useState} from 'react';
+import Login from './components/Login';
+import ConversationList from './components/ConversationList';
+import {api} from './lib/api';
+import {ChatSocket} from './lib/socket';
+import {useStore} from './store';
+import type {Message} from './lib/api';
+function Welcome({onNew}:{onNew:()=>void}){return <div className='welcome-pane'><div className='welcome-mark'>d.</div><h2>Space to talk.<br/><em>Room to breathe.</em></h2><p>Your conversations are private and kept on your own server.</p><button className='primary-link' onClick={onNew}>Start a conversation <span>↗</span></button></div>}
+export default function App(){const [route,setRoute]=useState(location.pathname);const {user,conversations,activeId,messages,setUser,setConversations,setActive,setMessages,addMessage,socketLive,setSocketLive}=useStore();const socketRef=useRef<ChatSocket|null>(null);const bottomRef=useRef<HTMLDivElement>(null);const [draft,setDraft]=useState('');const [mobileChat,setMobileChat]=useState(false);
+const refresh=useCallback(async()=>{const [me,cs]=await Promise.all([api.me(),api.conversations()]);setUser(me.user);setConversations(cs);return me.user;},[setUser,setConversations]);
+useEffect(()=>{if(route==='/login')return;refresh().catch(()=>setUser(null));},[route,refresh,setUser]);
+useEffect(()=>{if(!user)return;const socket=new ChatSocket();socketRef.current=socket;socket.connect();const unsub=socket.on(event=>{if(event.t==='hello.ok')setSocketLive(true);if(event.t==='sync.batch'&&Array.isArray(event.messages)){const active=useStore.getState().activeId;const incoming=(event.messages as Message[]).filter(m=>m.conversation_id===active);if(incoming.length)useStore.getState().setMessages(incoming);}if(event.t==='msg.new'&&event.message){const m=event.message as Message;if(m.conversation_id===useStore.getState().activeId)addMessage(m);refresh().catch(()=>{});}if(event.t==='error'&&event.code==='forbidden')setSocketLive(false);});return()=>{unsub();socket.close();socketRef.current=null;setSocketLive(false);};},[user?.id,addMessage,refresh,setSocketLive]);
+useEffect(()=>{if(activeId&&socketRef.current){socketRef.current.subscribe(activeId);api.messages(activeId).then(r=>setMessages(r.messages)).catch(()=>setMessages([]));}},[activeId,setMessages]);
+useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:'smooth'});},[messages,activeId]);
+async function signIn(){await refresh();setRoute('/');history.replaceState(null,'','/');}
+async function logout(){try{await api.logout();}catch{}socketRef.current?.close();setUser(null);setConversations([]);setActive(null);setRoute('/');history.replaceState(null,'','/');}
+async function openConversation(id:number){setActive(id);setMobileChat(true);}
+async function createDirect(id:number){try{const result=await api.createDirect(id);await refresh();setActive(result.id);setMobileChat(true);}catch{}}
+function sendMessage(){const text=draft.trim();if(!text||!activeId)return;const clientId=crypto.randomUUID();const pending:Message={id:-Date.now(),conversation_id:activeId,sender_id:user!.id,client_id:clientId,kind:'text',body:text,body_format:0,reply_to_id:null,created_at:new Date().toISOString(),edited_at:null,deleted_at:null,rev:0};addMessage(pending);setDraft('');socketRef.current?.send({t:'msg.send',conversation_id:activeId,client_id:clientId,body:text});}
+const activeConversation=conversations.find(c=>c.id===activeId);const isLogin=route==='/login';
+if(!user&&!isLogin)return <main className='shell'><div className='ambient ambient-one'/><header className='topbar'><a className='brand' href='/'><span className='brand-mark'>d.</span><span>duet</span></a><span className='topbar-note'>A quieter kind of connection</span></header><section className='hero'><div className='eyebrow'><span className='status-dot'/> YOUR PRIVATE SPACE</div><h1>Closer, without<br/><em>the noise.</em></h1><p className='lead'>A thoughtful place for your conversations. Private by design, made for the people who matter.</p><a className='primary-link' href='/login' onClick={e=>{e.preventDefault();setRoute('/login');history.pushState(null,'','/login');}}>Enter your space <span>↗</span></a><div className='feature-row'><article className='feature'><span className='feature-index'>01</span><h2>Private by design</h2><p>A small, self-hosted space for the people who matter.</p></article><article className='feature'><span className='feature-index'>02</span><h2>Conversations, not noise</h2><p>Direct chats and small groups in one calm place.</p></article><article className='feature'><span className='feature-index'>03</span><h2>Yours to host</h2><p>Your server, your data, your control.</p></article></div></section><footer className='footer'><span>DUET / PRIVATE MESSAGING</span><span>MADE FOR A FEW, NOT EVERYONE.</span></footer></main>;
+if(isLogin&&!user)return <Login onSuccess={()=>{signIn().catch(()=>{});}}/>;
+return <main className={'messenger '+(mobileChat?'mobile-chat-open':'')}><ConversationList items={conversations} active={activeId} onSelect={openConversation} onCreate={createDirect} me={user!} onLogout={logout}/><section className='chat-pane'>{activeId&&activeConversation?<><header className='chat-header'><button className='mobile-back icon-button' onClick={()=>setMobileChat(false)}>←</button><div className='avatar'>{(activeConversation.title??'Chat').split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase()}</div><div className='chat-heading'><strong>{activeConversation.title??'Direct conversation'}</strong><span>{socketLive?'Connected':'Connecting…'}</span></div><button className='icon-button' title='Conversation details'>•••</button></header><div className='message-list'>{messages.map(m=><article key={m.client_id||m.id} className={'message '+(m.sender_id===user?.id?'mine':'theirs')}><div className='bubble'>{m.deleted_at?'Message deleted':m.body}</div><time>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}{m.id<0&&<span className='pending'> · pending</span>}</time></article>)}<div ref={bottomRef}/></div><form className='composer' onSubmit={e=>{e.preventDefault();sendMessage();}}><textarea value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}} placeholder='Write a message…' rows={1}/><button className='send-button' disabled={!draft.trim()} type='submit'>↑</button></form></>:<Welcome onNew={()=>document.querySelector<HTMLButtonElement>('.icon-button[title="Find people"]')?.click()}/>}</section></main>;
 }
