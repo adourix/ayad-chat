@@ -34,11 +34,13 @@ export class ChatSocket {
           localStorage.setItem("duet_rev", String(Math.max(current, message.rev)));
         }
         if (data.t === "sync.batch" && Array.isArray(data.messages)) {
-          const maxRevision = (data.messages as Message[]).reduce((max, message) => Math.max(max, message.rev), 0);
+          const batch = data.messages as Message[];
+          const maxRevision = batch.reduce((max, message) => Math.max(max, message.rev), 0);
           if (maxRevision) {
             const current = Number(localStorage.getItem("duet_rev") || 0);
             localStorage.setItem("duet_rev", String(Math.max(current, maxRevision)));
           }
+          if (batch.length >= 500) window.setTimeout(() => this.send({t:"hello",protocol:1,since_rev:Number(localStorage.getItem("duet_rev")||0}),0);
         }
         this.emit(data);
       } catch { /* Ignore malformed frames. */ }
