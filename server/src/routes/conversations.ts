@@ -20,7 +20,7 @@ export async function registerConversationRoutes(app:FastifyInstance){
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
   const id=Number((request.params as {id:string}).id);if(!Number.isSafeInteger(id)||id<=0)return reply.code(400).send({error:"invalid_id"});
   if(!db.prepare("SELECT 1 FROM conversation_members WHERE conversation_id=? AND user_id=?").get(id,auth.user_id))return reply.code(404).send({error:"conversation_not_found"});
-  return db.prepare("SELECT u.id,u.username,u.display_name,m.role,m.joined_at,m.last_seen_at FROM conversation_members m JOIN users u ON u.id=m.user_id WHERE m.conversation_id=? ORDER BY m.joined_at").all(id);
+  return db.prepare("SELECT u.id,u.username,u.display_name,m.role,m.joined_at,m.last_seen_at,m.last_delivered_id,m.last_read_id FROM conversation_members m JOIN users u ON u.id=m.user_id WHERE m.conversation_id=? ORDER BY m.joined_at").all(id);
  });
  app.post("/api/conversations/direct",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
