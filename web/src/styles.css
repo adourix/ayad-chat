@@ -209,3 +209,10 @@ html,body,#root,.messenger,.chat-pane,.sidebar,.message-list,.chat-header,.compo
 
 /* Profile photo upload */
 .profile-photo-control{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0 12px}.profile-photo-preview{width:64px;height:64px;flex:0 0 64px;overflow:hidden;border-radius:50%;font-size:18px}.profile-photo-preview img,.avatar img{width:100%;height:100%;display:block;object-fit:cover;border-radius:inherit}.profile-photo-upload{display:inline-flex!important;align-items:center;justify-content:center;border:1px solid #333;border-radius:8px;padding:10px 13px;background:#111;color:#ddd;cursor:pointer;font-size:13px!important}.profile-photo-upload input{display:none}.profile-photo-control small{flex-basis:100%;color:#888;font-size:11px}
+
+/* Reliable image tap targets and visible read receipts */
+.message-image-button{position:relative;z-index:1;cursor:zoom-in!important;display:block;width:fit-content;max-width:100%;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;line-height:0!important;pointer-events:auto!important}
+.message-image-button img{pointer-events:none!important;cursor:zoom-in!important}
+.image-lightbox{cursor:zoom-out!important;z-index:9999!important}.image-lightbox img{cursor:default!important}
+.message-receipt{display:inline-block!important;letter-spacing:-1px!important;font-size:13px!important;line-height:1!important;text-shadow:0 0 1px currentColor!important;opacity:1!important}
+.message-receipt.receipt-read{color:#42d883!important}.message-receipt.receipt-delivered{color:#d0d0d0!important}.message-receipt.receipt-sent{color:#888!important}
