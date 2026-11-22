@@ -18,10 +18,11 @@ export async function registerMediaRoutes(app:FastifyInstance){
   const max=imageTypes.has(mime)?imageMax:videoMax;
   const declared=Number(request.headers["content-length"]||0);if(declared>max)return reply.code(413).send({error:"media_too_large"});
   const buffer=request.body as Buffer;if(!Buffer.isBuffer(buffer)||buffer.length===0)return reply.code(400).send({error:"empty_media"});if(buffer.length>max)return reply.code(413).send({error:"media_too_large"});
+  const width=Number(request.headers["x-media-width"]||0),height=Number(request.headers["x-media-height"]||0);const safeWidth=width>0&&width<=20000?width:null,safeHeight=height>0&&height<=20000?height:null;
   const key=randomUUID()+"."+ext,fullPath=join(mediaDir,key),size=buffer.length;
   try{
    await writeFile(fullPath,buffer,{flag:"wx"});
-   const created=db.prepare("INSERT INTO attachments(uploader_id,mime,size,storage_key) VALUES(?,?,?,?)").run(auth.user_id,mime,size,key);
+   const created=db.prepare("INSERT INTO attachments(uploader_id,mime,size,width,height,storage_key) VALUES(?,?,?,?,?,?)").run(auth.user_id,mime,size,safeWidth,safeHeight,key);
    const id=Number(created.lastInsertRowid);
    return reply.code(201).send({id,mime,size,url:"/api/media/"+id});
   }catch(error){await unlink(fullPath).catch(()=>{});throw error;}
