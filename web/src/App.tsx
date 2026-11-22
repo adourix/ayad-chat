@@ -50,7 +50,7 @@ export default function App(){
  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages,activeId]);
  async function signIn(){await refresh();setRoute("/");history.replaceState(null,"","/");}
  async function logout(){try{await api.logout();}catch{}socketRef.current?.close();setUser(null);setConversations([]);setActive(null);setRoute("/");history.replaceState(null,"","/");}
- function openConversation(id:number){setActive(id);setMobileChat(true);}
+ function openConversation(id:number){setConversations(useStore.getState().conversations.map(c=>c.id===id?{...c,unread_count:0}:c));setActive(id);setMobileChat(true);markConversationRead(id);}
  async function createDirect(id:number){try{const result=await api.createDirect(id);await refresh();setActive(result.id);setMobileChat(true);}catch{}}
  function createGroup(id:number){refresh().then(()=>{setActive(id);setMobileChat(true);}).catch(()=>{});}
  function sendMessage(){const text=draft.trim();if(!text||!activeId||!user)return;const clientId=crypto.randomUUID(),createdAt=new Date().toISOString();const item:OutboxItem={conversation_id:activeId,client_id:clientId,body:text,created_at:createdAt,kind:"text"};writeOutbox(user.id,[...readOutbox(user.id),item]);addMessage(pendingMessage(item,user));setDraft("");socketRef.current?.send({t:"msg.send",conversation_id:activeId,client_id:clientId,body:text,kind:"text"});}
