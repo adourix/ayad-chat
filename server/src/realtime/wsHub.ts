@@ -10,7 +10,7 @@ type Client={socket:WebSocket;userId:number;sessionId:string;subscribed:Set<numb
 const clients=new Set<Client>();
 const send=(client:Client,payload:unknown)=>{if(client.socket.readyState===WebSocket.OPEN)client.socket.send(JSON.stringify(payload));};
 const member=(cid:number,uid:number)=>db.prepare("SELECT joined_at FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,uid) as {joined_at:string}|undefined;
-const broadcastConversation=(cid:number,payload:unknown,except?:Client)=>{for(const c of clients)if(c!==except&&c.subscribed.has(cid)&&member(cid,c.userId))send(c,payload);};
+const broadcastConversation=(cid:number,payload:unknown,except?:Client)=>{for(const c of clients)if(c!==except&&member(cid,c.userId))send(c,payload);};
 const broadcastUser=(uid:number,payload:unknown,except?:Client)=>{for(const c of clients)if(c!==except&&c.userId===uid)send(c,payload);};
 function parseCookie(raw:string|undefined,name:string){if(!raw)return;for(const item of raw.split(";")){const [key,...rest]=item.trim().split("=");if(key===name)return rest.join("=");}}
 export function attachWebSocket(app:FastifyInstance){
