@@ -12,8 +12,10 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerConversationRoutes } from "./routes/conversations.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerUserRoutes } from "./routes/users.js";
+import { registerMediaRoutes } from "./routes/media.js";
 import { attachWebSocket } from "./realtime/wsHub.js";
 const app=Fastify({logger:{level:config.LOG_LEVEL},trustProxy:["127.0.0.1","::1"],bodyLimit:25*1024*1024});
+for(const mediaType of ["application/octet-stream","image/jpeg","image/png","image/webp","image/gif","video/mp4","video/webm"]){app.addContentTypeParser(mediaType,{parseAs:"buffer",bodyLimit:25*1024*1024},(_request,body,done)=>done(null,body));}
 await app.register(helmet,{contentSecurityPolicy:false});
 await app.register(cookie);
 await app.register(rateLimit,{global:false});
@@ -22,6 +24,7 @@ await registerAuthRoutes(app);
 await registerConversationRoutes(app);
 await registerMessageRoutes(app);
 await registerUserRoutes(app);
+await registerMediaRoutes(app);
 app.addHook("onRequest",async(request,reply)=>{
  if(request.method==="GET"||request.method==="HEAD"||request.url==="/healthz")return;
  const origin=request.headers.origin;
