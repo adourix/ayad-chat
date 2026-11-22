@@ -6,7 +6,7 @@ import {findSession} from "../auth/session.js";
 import {currentRevision,nextRevision} from "../db/revision.js";
 import {clientEnvelopeSchema} from "@duet/shared";
 type Session=NonNullable<ReturnType<typeof findSession>>;
-type Client={socket:WebSocket;userId:number;sessionId:string;subscribed:Set<number>};
+type Client={socket:WebSocket;userId:number;sessionId:string;subscribed:Set<number>;messageTimes:number[]};
 const clients=new Set<Client>();
 const send=(client:Client,payload:unknown)=>{if(client.socket.readyState===WebSocket.OPEN)client.socket.send(JSON.stringify(payload));};
 const member=(cid:number,uid:number)=>db.prepare("SELECT joined_at,last_read_id,last_delivered_id FROM conversation_members WHERE conversation_id=? AND user_id=?").get(cid,uid) as {joined_at:string;last_read_id:number;last_delivered_id:number}|undefined;
@@ -43,7 +43,7 @@ export function attachWebSocket(app:FastifyInstance){
  wss.on("connection",(socket,req)=>{
   const session=(req as typeof req & {duetSession?:Session}).duetSession;if(!session){socket.close(1008,"unauthorized");return;}
   const wasOnline=userOnline(session.user_id);
-  const client:Client={socket,userId:session.user_id,sessionId:session.session_id,subscribed:new Set()};clients.add(client);
+  const client:Client={socket,userId:session.user_id,sessionId:session.session_id,subscribed:new Set(),messageTimes:[]};clients.add(client);
   const now=new Date().toISOString();
   db.prepare("UPDATE conversation_members SET last_seen_at=? WHERE user_id=?").run(now,client.userId);
   if(!wasOnline)presence(client.userId,true,now);
@@ -99,6 +99,7 @@ export function attachWebSocket(app:FastifyInstance){
     if(msg.kind!=="text"&&(!msg.attachment_id||!db.prepare("SELECT id FROM attachments WHERE id=? AND uploader_id=?").get(msg.attachment_id,client.userId))){send(client,{t:"error",code:"invalid_attachment",ref:msg.client_id});return;}
     const duplicate=db.prepare("SELECT id,created_at,rev FROM messages WHERE conversation_id=? AND sender_id=? AND client_id=?").get(msg.conversation_id,client.userId,msg.client_id) as {id:number;created_at:string;rev:number}|undefined;
     if(duplicate){send(client,{t:"msg.ack",client_id:msg.client_id,id:duplicate.id,created_at:duplicate.created_at,rev:duplicate.rev});return;}
+    const nowMs=Date.now();client.messageTimes=client.messageTimes.filter(time=>nowMs-time<60_000);if(client.messageTimes.length>=60){send(client,{t:"error",code:"rate_limited",ref:msg.client_id});return;}client.messageTimes.push(nowMs);
     const transaction=db.transaction(()=>{const rev=nextRevision();const inserted=db.prepare("INSERT INTO messages(conversation_id,sender_id,client_id,kind,body,body_format,reply_to_id,attachment_id,rev) VALUES(?,?,?,?,?,0,?,?,?)").run(msg.conversation_id,client.userId,msg.client_id,msg.kind,msg.body,msg.reply_to??null,msg.attachment_id??null,rev);const id=Number(inserted.lastInsertRowid);const created=db.prepare("SELECT created_at FROM messages WHERE id=?").get(id) as {created_at:string};db.prepare("UPDATE conversations SET updated_at=?,last_message_id=? WHERE id=?").run(created.created_at,id,msg.conversation_id);return{id,rev,created_at:created.created_at};});
     const result=transaction();send(client,{t:"msg.ack",client_id:msg.client_id,id:result.id,created_at:result.created_at,rev:result.rev});
     const record=hydrate(messageRecord(result.id));
