@@ -4,12 +4,12 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.12.1",
   "scripts": {
-    "dev": "pnpm --parallel --filter @duet/server --filter @duet/web dev",
-    "dev:server": "pnpm --filter @duet/server dev",
+    "dev": "pnpm --filter @duet/shared build && pnpm --parallel --filter @duet/server --filter @duet/web dev",
+    "dev:server": "pnpm --filter @duet/shared build && pnpm --filter @duet/server dev",
     "dev:web": "pnpm --filter @duet/web dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
+    "build": "pnpm --filter @duet/shared --filter @duet/server --filter @duet/web build",
+    "typecheck": "pnpm --filter @duet/shared --filter @duet/server --filter @duet/web typecheck",
+    "lint": "pnpm --filter @duet/shared --filter @duet/server --filter @duet/web lint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
