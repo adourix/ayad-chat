@@ -1,0 +1,4 @@
+import {create} from 'zustand';
+import type {Conversation,Message,User} from './lib/api';
+type State={user:User|null;conversations:Conversation[];activeId:number|null;messages:Message[];socketLive:boolean;setUser:(user:User|null)=>void;setConversations:(c:Conversation[])=>void;setActive:(id:number|null)=>void;setMessages:(m:Message[])=>void;addMessage:(m:Message)=>void;setSocketLive:(live:boolean)=>void};
+export const useStore=create<State>(set=>({user:null,conversations:[],activeId:null,messages:[],socketLive:false,setUser:user=>set({user}),setConversations:conversations=>set({conversations}),setActive:activeId=>set({activeId,messages:[]}),setMessages:messages=>set({messages}),addMessage:m=>set(s=>s.messages.some(x=>x.id===m.id||x.client_id===m.client_id)?s:{messages:[...s.messages,m].sort((a,b)=>a.id-b.id)}),setSocketLive:socketLive=>set({socketLive})}));
