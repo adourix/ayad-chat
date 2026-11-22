@@ -17,8 +17,9 @@ export async function registerMediaRoutes(app:FastifyInstance){
  await mkdir(mediaDir,{recursive:true});await pruneOrphanMedia();
  app.post("/api/media",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
-  const headerMime=request.headers["x-media-type"];
-  const mime=(typeof headerMime==="string"?headerMime:request.headers["content-type"]||"").split(";")[0].trim().toLowerCase();
+  const headerMime=request.headers["x-media-type"],contentTypeHeader=request.headers["content-type"];
+  const rawMime=typeof headerMime==="string"?headerMime:typeof contentTypeHeader==="string"?contentTypeHeader:"";
+  const mime=rawMime.split(";")[0].trim().toLowerCase();
   const ext=imageTypes.get(mime)||videoTypes.get(mime);if(!ext)return reply.code(415).send({error:"unsupported_media_type"});
   const max=imageTypes.has(mime)?imageMax:videoMax;
   const declared=Number(request.headers["content-length"]||0);if(declared>max)return reply.code(413).send({error:"media_too_large"});
