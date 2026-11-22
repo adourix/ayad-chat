@@ -4,9 +4,9 @@ RUN corepack enable
 WORKDIR /app
 FROM base AS build
 COPY package.json pnpm-workspace.yaml .npmrc ./
-COPY shared/package.json ./shared/package.json
-COPY server/package.json ./server/package.json
-COPY web/package.json ./web/package.json
+COPY shared/package.json shared/tsconfig.json shared/tsconfig.build.json ./shared/
+COPY server/package.json server/tsconfig.json server/tsconfig.build.json ./server/
+COPY web/package.json web/tsconfig.json ./web/
 RUN pnpm install --no-frozen-lockfile
 COPY . .
 RUN pnpm build
@@ -18,6 +18,8 @@ COPY --from=build --chown=duet:duet /app/server/dist ./server/dist
 COPY --from=build --chown=duet:duet /app/server/src/db/schema.sql ./server/dist/db/schema.sql
 COPY --from=build --chown=duet:duet /app/server/node_modules ./server/node_modules
 COPY --from=build --chown=duet:duet /app/node_modules ./node_modules
+COPY --from=build --chown=duet:duet /app/shared/package.json ./shared/package.json
+COPY --from=build --chown=duet:duet /app/shared/dist ./shared/dist
 COPY --from=build --chown=duet:duet /app/web/dist ./web/dist
 USER duet
 EXPOSE 3000
