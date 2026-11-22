@@ -2,96 +2,62 @@ import {useCallback,useEffect,useRef,useState} from "react";
 import Login from "./components/Login";
 import AccountSettings from "./components/AccountSettings";
 import ConversationList from "./components/ConversationList";
-import {api} from "./lib/api";
-import {ChatSocket, type SocketEvent} from "./lib/socket";
+import {api, type Attachment} from "./lib/api";
+import {ChatSocket,type SocketEvent} from "./lib/socket";
+import {optimizeImage,MAX_VIDEO_BYTES} from "./lib/media";
 import {useStore} from "./store";
 import type {Message,User} from "./lib/api";
 
-type OutboxItem={conversation_id:number;client_id:string;body:string;created_at:string};
+type OutboxItem={conversation_id:number;client_id:string;body:string;created_at:string;kind?:"text"|"image"|"video";attachment_id?:number;attachment?:Attachment};
 const outboxKey=(userId:number)=> "duet_outbox_"+userId;
 function readOutbox(userId:number):OutboxItem[]{try{return JSON.parse(localStorage.getItem(outboxKey(userId))||"[]") as OutboxItem[];}catch{return [];}}
 function writeOutbox(userId:number,items:OutboxItem[]){try{localStorage.setItem(outboxKey(userId),JSON.stringify(items));}catch{}}
-function pendingMessage(item:OutboxItem,user:User):Message{return{id:-Date.now(),conversation_id:item.conversation_id,sender_id:user.id,client_id:item.client_id,kind:"text",body:item.body,body_format:0,reply_to_id:null,created_at:item.created_at,edited_at:null,deleted_at:null,rev:0};}
+function pendingMessage(item:OutboxItem,user:User):Message{return{id:-Date.now(),conversation_id:item.conversation_id,sender_id:user.id,client_id:item.client_id,kind:item.kind??"text",body:item.body,body_format:0,reply_to_id:null,attachment:item.attachment??null,created_at:item.created_at,edited_at:null,deleted_at:null,rev:0};}
 function mergeMessages(existing:Message[],incoming:Message[]){const map=new Map(existing.map(m=>[m.client_id||String(m.id),m]));for(const m of incoming)map.set(m.client_id||String(m.id),m);return [...map.values()].sort((a,b)=>(a.rev===0?Number.MAX_SAFE_INTEGER:a.id)-(b.rev===0?Number.MAX_SAFE_INTEGER:b.id));}
 function Welcome({onNew}:{onNew:()=>void}){return <div className="welcome-pane"><div className="welcome-mark">d.</div><h2>Space to talk.<br/><em>Room to breathe.</em></h2><p>Your conversations are private and kept on your own server.</p><button className="primary-link" onClick={onNew}>Start a conversation <span>↗</span></button></div>}
-
+function MediaContent({message}:{message:Message}){const attachment=message.attachment;if(!attachment)return null;if(message.kind==="image"||attachment.mime.startsWith("image/"))return <a className="message-image-link" href={attachment.url} target="_blank" rel="noreferrer"><img className="message-image" src={attachment.url} loading="lazy" alt="Shared image"/></a>;if(message.kind==="video"||attachment.mime.startsWith("video/"))return <video className="message-video" src={attachment.url} controls preload="metadata" playsInline/>;return <a className="media-file" href={attachment.url}>Download attachment · {(attachment.size/1024/1024).toFixed(1)} MB</a>;}
 export default function App(){
  const [route,setRoute]=useState(location.pathname);
- const {user,conversations,activeId,messages,setUser,setConversations,setActive,setMessages,addMessage,socketLive,setSocketLive}=useStore();
- const socketRef=useRef<ChatSocket|null>(null);const bottomRef=useRef<HTMLDivElement>(null);
- const [draft,setDraft]=useState("");const [mobileChat,setMobileChat]=useState(false);const [showSettings,setShowSettings]=useState(false);
+ const {user,conversations,activeId,messages,setUser,setConversations,setActive,setMessages,addMessage,socketLive,setSocketLive,presence,receipts,setPresence,setPresenceSnapshot,setReceipt}=useStore();
+ const socketRef=useRef<ChatSocket|null>(null);const bottomRef=useRef<HTMLDivElement>(null);const mediaInputRef=useRef<HTMLInputElement>(null);
+ const [draft,setDraft]=useState("");const [mobileChat,setMobileChat]=useState(false);const [showSettings,setShowSettings]=useState(false);const [activeMembers,setActiveMembers]=useState<Array<{id:number;username:string;display_name:string;last_seen_at:string|null}>>([]);const [uploadingMedia,setUploadingMedia]=useState(false);const [mediaError,setMediaError]=useState("");
  const refresh=useCallback(async()=>{const [me,cs]=await Promise.all([api.me(),api.conversations()]);setUser(me.user);setConversations(cs);return me.user;},[setUser,setConversations]);
-
+ const sendReceipt=(cid:number,delivered?:number,read?:number)=>socketRef.current?.send({t:"receipt",conversation_id:cid,...(delivered?{delivered_up_to:delivered}:{}),...(read?{read_up_to:read}:{})});
+ const markConversationRead=useCallback(async(cid:number)=>{try{const result=await api.markRead(cid);sendReceipt(cid,undefined,result.read_up_to);await refresh();}catch{}},[refresh]);
  useEffect(()=>{if(route==="/login")return;refresh().catch(()=>setUser(null));},[route,refresh,setUser]);
  useEffect(()=>{const handlePop=()=>setRoute(location.pathname);window.addEventListener("popstate",handlePop);return()=>window.removeEventListener("popstate",handlePop);},[]);
- useEffect(()=>{if(!user||!activeId)return;readOutbox(user.id).filter(item=>item.conversation_id===activeId).forEach(item=>addMessage(pendingMessage(item,user)));},[user?.id,activeId,addMessage]);
-
+ useEffect(()=>{if(!user||!activeId)return;readOutbox(user.id).filter(item=>item.conversation_id===activeId).forEach(item=>addMessage(pendingMessage(item,user));},[user?.id,activeId,addMessage]);
  useEffect(()=>{
   if(!user)return;
   const socket=new ChatSocket();socketRef.current=socket;socket.connect();
   const unsubscribe=socket.on((event:SocketEvent)=>{
-   if(event.t==="socket.state"){
-    const live=Boolean(event.live);setSocketLive(live);
-    if(live)readOutbox(user.id).forEach(item=>socket.send({t:"msg.send",conversation_id:item.conversation_id,client_id:item.client_id,body:item.body}));
-   }
-   if(event.t==="hello.ok")setSocketLive(true);
-   if(event.t==="msg.ack"){
-    const ack=event as unknown as {client_id:string;id:number;created_at:string;rev:number};
-    useStore.setState(state=>({messages:state.messages.map(m=>m.client_id===ack.client_id?{...m,id:ack.id,created_at:ack.created_at,rev:ack.rev}:m).sort((a,b)=>(a.rev===0?Number.MAX_SAFE_INTEGER:a.id)-(b.rev===0?Number.MAX_SAFE_INTEGER:b.id))}));
-    writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==ack.client_id));
-   }
-   if(event.t==="sync.batch"&&Array.isArray(event.messages)){
-    const incoming=event.messages as Message[];
-    writeOutbox(user.id,readOutbox(user.id).filter(item=>!incoming.some(m=>m.client_id===item.client_id)));
-    if(incoming.some(m=>m.conversation_id===useStore.getState().activeId)){
-     const activeIncoming=incoming.filter(m=>m.conversation_id===useStore.getState().activeId);
-     useStore.getState().setMessages(mergeMessages(useStore.getState().messages,activeIncoming));
-    }
-   }
-   if(event.t==="msg.new"&&event.message){
-    const message=event.message as Message;
-    writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==message.client_id));
-    if(message.conversation_id===useStore.getState().activeId){
-     useStore.setState(state=>({messages:mergeMessages(state.messages,[message])}));api.markRead(message.conversation_id).then(()=>refresh()).catch(()=>{});
-    }
-    refresh().catch(()=>{});
-   }
-   if(event.t==="error"&&event.ref){
-    const ref=String(event.ref);writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==ref));
-   }
+   if(event.t==="socket.state"){const live=Boolean(event.live);setSocketLive(live);if(live)readOutbox(user.id).forEach(item=>socket.send({t:"msg.send",conversation_id:item.conversation_id,client_id:item.client_id,body:item.body,kind:item.kind??"text",...(item.attachment_id?{attachment_id:item.attachment_id}:{})}));}
+   if(event.t==="hello.ok"){setSocketLive(true);if(Array.isArray(event.presence_snapshot))setPresenceSnapshot(event.presence_snapshot as Array<{user_id:number;online:boolean;last_seen_at:string|null}>);}
+   if(event.t==="presence")setPresence(event as unknown as {user_id:number;online:boolean;last_seen_at:string|null});
+   if(event.t==="receipt"){const receipt=event as unknown as {conversation_id:number;user_id:number;delivered_up_to?:number;read_up_to?:number};setReceipt({conversation_id:receipt.conversation_id,user_id:receipt.user_id,delivered_up_to:receipt.delivered_up_to??0,read_up_to:receipt.read_up_to??0});}
+   if(event.t==="msg.ack"){const ack=event as unknown as {client_id:string;id:number;created_at:string;rev:number};useStore.setState(state=>({messages:state.messages.map(m=>m.client_id===ack.client_id?{...m,id:ack.id,created_at:ack.created_at,rev:ack.rev}:m).sort((a,b)=>(a.rev===0?Number.MAX_SAFE_INTEGER:a.id)-(b.rev===0?Number.MAX_SAFE_INTEGER:b.id))}));writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==ack.client_id));}
+   if(event.t==="sync.batch"&&Array.isArray(event.messages)){const incoming=event.messages as Message[];writeOutbox(user.id,readOutbox(user.id).filter(item=>!incoming.some(m=>m.client_id===item.client_id)));if(incoming.some(m=>m.conversation_id===useStore.getState().activeId)){const activeIncoming=incoming.filter(m=>m.conversation_id===useStore.getState().activeId);useStore.getState().setMessages(mergeMessages(useStore.getState().messages,activeIncoming));}}
+   if(event.t==="msg.new"&&event.message){const message=event.message as Message;writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==message.client_id));if(message.sender_id!==user.id)sendReceipt(message.conversation_id,message.id);if(message.conversation_id===useStore.getState().activeId){useStore.setState(state=>({messages:mergeMessages(state.messages,[message])}));if(message.sender_id!==user.id)markConversationRead(message.conversation_id);}refresh().catch(()=>{});}
+   if(event.t==="error"&&event.ref){writeOutbox(user.id,readOutbox(user.id).filter(item=>item.client_id!==String(event.ref)));}
    if(event.t==="error"&&event.code==="forbidden")setSocketLive(false);
   });
   return()=>{unsubscribe();socket.close();socketRef.current=null;setSocketLive(false);};
- },[user?.id,addMessage,refresh,setSocketLive]);
-
- useEffect(()=>{
-  if(!activeId||!user||!socketRef.current)return;
-  socketRef.current.subscribe(activeId);
-  let alive=true;
-  api.messages(activeId).then(result=>{
-   if(!alive)return;
-   const serverIds=new Set(result.messages.map(m=>m.client_id));
-   const pending=readOutbox(user.id).filter(item=>item.conversation_id===activeId&&!serverIds.has(item.client_id)).map(item=>pendingMessage(item,user));
-   setMessages(mergeMessages(result.messages,pending));api.markRead(activeId).then(()=>refresh()).catch(()=>{});
-  }).catch(()=>{if(alive)setMessages([]);});
-  return()=>{alive=false;};
- },[activeId,user?.id,setMessages]);
+ },[user?.id,addMessage,refresh,setSocketLive,setPresence,setPresenceSnapshot,setReceipt,markConversationRead]);
+ useEffect(()=>{if(!activeId||!user||!socketRef.current)return;socketRef.current.subscribe(activeId);let alive=true;
+ api.messages(activeId).then(result=>{if(!alive)return;const serverIds=new Set(result.messages.map(m=>m.client_id));const pending=readOutbox(user.id).filter(item=>item.conversation_id===activeId&&!serverIds.has(item.client_id)).map(item=>pendingMessage(item,user));setMessages(mergeMessages(result.messages,pending));if(result.messages.length){sendReceipt(activeId,result.messages[result.messages.length-1].id);markConversationRead(activeId);}else markConversationRead(activeId);}).catch(()=>{if(alive)setMessages([]);});
+ api.members(activeId).then(m=>{if(alive)setActiveMembers(m);}).catch(()=>{if(alive)setActiveMembers([]);});return()=>{alive=false;};
+ },[activeId,user?.id,setMessages,markConversationRead]);
  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages,activeId]);
-
  async function signIn(){await refresh();setRoute("/");history.replaceState(null,"","/");}
  async function logout(){try{await api.logout();}catch{}socketRef.current?.close();setUser(null);setConversations([]);setActive(null);setRoute("/");history.replaceState(null,"","/");}
  function openConversation(id:number){setActive(id);setMobileChat(true);}
  async function createDirect(id:number){try{const result=await api.createDirect(id);await refresh();setActive(result.id);setMobileChat(true);}catch{}}
- async function createGroup(id:number){await refresh();setActive(id);setMobileChat(true);}
- function sendMessage(){
-  const text=draft.trim();if(!text||!activeId||!user)return;
-  const clientId=crypto.randomUUID();const createdAt=new Date().toISOString();
-  const item:OutboxItem={conversation_id:activeId,client_id:clientId,body:text,created_at:createdAt};
-  writeOutbox(user.id,[...readOutbox(user.id),item]);
-  addMessage(pendingMessage(item,user));setDraft("");
-  socketRef.current?.send({t:"msg.send",conversation_id:activeId,client_id:clientId,body:text});
- }
+ function createGroup(id:number){refresh().then(()=>{setActive(id);setMobileChat(true);}).catch(()=>{});}
+ function sendMessage(){const text=draft.trim();if(!text||!activeId||!user)return;const clientId=crypto.randomUUID(),createdAt=new Date().toISOString();const item:OutboxItem={conversation_id:activeId,client_id:clientId,body:text,created_at:createdAt,kind:"text"};writeOutbox(user.id,[...readOutbox(user.id),item]);addMessage(pendingMessage(item,user));setDraft("");socketRef.current?.send({t:"msg.send",conversation_id:activeId,client_id:clientId,body:text,kind:"text"});}
+ async function sendMediaFile(file:File){if(!activeId||!user||uploadingMedia)return;setMediaError("");setUploadingMedia(true);try{let blob:Blob=file,mime=file.type,width=0,height=0,kind:"image"|"video";if(file.type.startsWith("image/")){const optimized=await optimizeImage(file);blob=optimized.blob;mime=optimized.mime;width=optimized.width;height=optimized.height;kind="image";}else if(file.type.startsWith("video/")){if(file.size>MAX_VIDEO_BYTES)throw new Error("video_too_large");kind="video";}else throw new Error("unsupported_media");const uploaded=await api.uploadMedia(blob,mime);const attachment:Attachment={id:uploaded.id,mime:uploaded.mime,size:uploaded.size,width:width||null,height:height||null,duration_ms:null,url:uploaded.url};const clientId=crypto.randomUUID(),createdAt=new Date().toISOString(),item:OutboxItem={conversation_id:activeId,client_id:clientId,body:"",created_at:createdAt,kind,attachment_id:uploaded.id,attachment};writeOutbox(user.id,[...readOutbox(user.id),item]);addMessage(pendingMessage(item,user));socketRef.current?.send({t:"msg.send",conversation_id:activeId,client_id:clientId,body:"",kind,attachment_id:uploaded.id});}catch(err){setMediaError(err instanceof Error&&err.message==="video_too_large"?"Video limit is 24 MB.":err instanceof Error&&err.message==="unsupported_media"?"Only images and videos are supported.":"Media upload failed.");}finally{setUploadingMedia(false);if(mediaInputRef.current)mediaInputRef.current.value="";}}
+ const currentReceipts=receipts[activeId??-1]??[];const others=currentReceipts.filter(r=>r.user_id!==user?.id);const readUpTo=others.reduce((max,r)=>Math.max(max,r.read_up_to),0);const deliveredUpTo=others.reduce((max,r)=>Math.max(max,r.delivered_up_to),0);
+ const partner=activeMembers.find(m=>m.id!==user?.id);const partnerPresence=partner?presence[partner.id]:undefined;const presenceLabel=activeConversation?.type==="group"?(()=>{const count=activeMembers.filter(m=>presence[m.id]?.online).length;return count?count+" online":"Group conversation";})():partnerPresence?.online?"Online":partner?.last_seen_at? "Last seen "+new Date(partnerPresence?.last_seen_at??partner.last_seen_at??"").toLocaleString():"Offline";
  const activeConversation=conversations.find(c=>c.id===activeId);
  if(!user)return <Login onSuccess={()=>{signIn().catch(()=>{});}}/>;
- return <><main className={"messenger "+(mobileChat?"mobile-chat-open":"")}><ConversationList items={conversations} active={activeId} onSelect={openConversation} onCreate={createDirect} onGroupCreated={createGroup} me={user!} onLogout={logout} onSettings={()=>setShowSettings(true)}/><section className="chat-pane">{activeId&&activeConversation?<><header className="chat-header"><button className="mobile-back icon-button" onClick={()=>setMobileChat(false)}>←</button><div className="avatar">{(activeConversation.title??"Chat").split(" ").slice(0,2).map(x=>x[0]).join("").toUpperCase()}</div><div className="chat-heading"><strong>{activeConversation.title??"Direct conversation"}</strong><span>{socketLive?"Connected":"Connecting…"}</span></div><button className="icon-button" title="Conversation details">•••</button></header><div className="message-list">{messages.map(m=><article key={m.client_id||m.id} className={"message "+(m.sender_id===user?.id?"mine":"theirs")}><div className="bubble">{m.deleted_at?"Message deleted":m.body}</div><time>{new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}{m.rev===0&&<span className="pending"> · pending</span>}</time></article>)}<div ref={bottomRef}/></div><form className="composer" onSubmit={e=>{e.preventDefault();sendMessage();}}><textarea value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}} placeholder="Write a message…" rows={1}/><button className="send-button" disabled={!draft.trim()} type="submit">↑</button></form></>:<Welcome onNew={()=>document.querySelector<HTMLButtonElement>('.icon-button[title="Find people"]')?.click()}/>}</section> </main>{showSettings&&user&&<AccountSettings me={user} onClose={()=>setShowSettings(false)} onUpdated={updated=>{setUser(updated);refresh().catch(()=>{});}}/>}</>;
+ return <><main className={"messenger "+(mobileChat?"mobile-chat-open":"")}><ConversationList items={conversations} active={activeId} onSelect={openConversation} onCreate={createDirect} onGroupCreated={createGroup} me={user} onLogout={logout} onSettings={()=>setShowSettings(true)}/><section className="chat-pane">{activeId&&activeConversation?<><header className="chat-header"><button className="mobile-back icon-button" onClick={()=>setMobileChat(false)}>←</button><div className="avatar">{(activeConversation.title??"Chat").split(" ").slice(0,2).map(x=>x[0]).join("").toUpperCase()}</div><div className="chat-heading"><strong>{activeConversation.title??"Direct conversation"}</strong><span className={partnerPresence?.online?"presence-online":"presence-offline"}>{presenceLabel}</span></div><button className="icon-button" title="Conversation details">•••</button></header><div className="message-list">{messages.map(m=><article key={m.client_id||m.id} className={"message "+(m.sender_id===user?.id?"mine":"theirs")}><div className="bubble">{m.deleted_at?"Message deleted":m.kind==="text"?m.body:<MediaContent message={m}/>}</div><time>{new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}{m.rev===0?<span className="pending"> · sending</span>:m.sender_id===user.id?<span className="message-receipt" title={readUpTo>=m.id?"Read":deliveredUpTo>=m.id?"Delivered":"Sent"}>{readUpTo>=m.id?"✓✓":deliveredUpTo>=m.id?"✓✓":"✓"}</span>:null}</time></article>)}<div ref={bottomRef}/></div><form className="composer" onSubmit={e=>{e.preventDefault();sendMessage();}}><input ref={mediaInputRef} className="media-input" type="file" accept="image/*,video/mp4,video/webm" onChange={e=>{const f=e.target.files?.[0];if(f)sendMediaFile(f);}}/><button type="button" className="media-button" title="Attach image or video" disabled={uploadingMedia} onClick={()=>mediaInputRef.current?.click()}>{uploadingMedia?"…":"＋"}</button><textarea value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}} placeholder="Write a message…" rows={1}/><button className="send-button" disabled={!draft.trim()} type="submit">↑</button></form>{mediaError&&<div className="media-error">{mediaError}</div>}</>:<Welcome onNew={()=>document.querySelector<HTMLButtonElement>('.icon-button[title="Find people"]')?.click()}/>}</section></main>{showSettings&&user&&<AccountSettings me={user} onClose={()=>setShowSettings(false)} onUpdated={updated=>{setUser(updated);refresh().catch(()=>{});}}/>}</>;
 }
