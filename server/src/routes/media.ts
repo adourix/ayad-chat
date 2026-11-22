@@ -40,7 +40,7 @@ export async function registerMediaRoutes(app:FastifyInstance){
   const id=Number((request.params as {id:string}).id);if(!Number.isSafeInteger(id)||id<=0)return reply.code(400).send({error:"invalid_id"});
   const row=db.prepare("SELECT id,uploader_id,mime,size,storage_key FROM attachments WHERE id=?").get(id) as {id:number;uploader_id:number;mime:string;size:number;storage_key:string}|undefined;
   if(!row)return reply.code(404).send({error:"media_not_found"});
-  const allowed=row.uploader_id===auth.user_id||Boolean(db.prepare("SELECT 1 FROM users WHERE id=? AND avatar_attachment_id=?").get(auth.user_id,id))||Boolean(db.prepare("SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.attachment_id=? AND cm.user_id=? LIMIT 1").get(id,auth.user_id));
+  const allowed=row.uploader_id===auth.user_id||Boolean(db.prepare("SELECT 1 FROM users WHERE avatar_attachment_id=?").get(id))||Boolean(db.prepare("SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.attachment_id=? AND cm.user_id=? LIMIT 1").get(id,auth.user_id));
   if(!allowed)return reply.code(403).send({error:"forbidden"});
   const path=join(mediaDir,row.storage_key);try{const s=await stat(path);reply.header("Content-Type",row.mime).header("Content-Length",s.size).header("Cache-Control","private, max-age=86400").header("X-Content-Type-Options","nosniff");return reply.send(createReadStream(path));}catch{return reply.code(404).send({error:"media_not_found"});}
  });
