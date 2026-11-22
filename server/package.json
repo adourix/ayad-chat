@@ -1,0 +1,37 @@
+{
+  "name": "@duet/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "user:create": "tsx src/cli/createUser.ts"
+  },
+  "dependencies": {
+    "@duet/shared": "workspace:*",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/helmet": "^12.1.0",
+    "@fastify/rate-limit": "^10.2.1",
+    "argon2": "^0.41.1",
+    "better-sqlite3": "^11.10.0",
+    "drizzle": "^0.44.2",
+    "drizzle-orm": "^0.44.2",
+    "dotenv": "^16.5.0",
+    "fastify": "^5.3.3",
+    "fastify-plugin": "^5.0.1",
+    "pino": "^9.7.0",
+    "zod": "^3.25.28",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.30",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
