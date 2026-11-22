@@ -4,11 +4,11 @@ export type SocketEvent = { t: string; [key: string]: unknown };
 export class ChatSocket {
   private socket?: WebSocket;
   private retry = 0;
-  private timer?: number;
-  private heartbeat?: number;
+  private timer: number | undefined;
+  private heartbeat: number | undefined;
   private closed = false;
   private callbacks = new Set<(event: SocketEvent) => void>();
-  private subscribed?: number;
+  private subscribed: number | undefined;
 
   connect() { this.closed = false; this.open(); }
   private emit(event: SocketEvent) { this.callbacks.forEach((callback) => callback(event)); }
