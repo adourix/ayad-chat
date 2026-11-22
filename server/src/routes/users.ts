@@ -20,7 +20,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const q = ((request.query as { q?: string }).q ?? "").trim().slice(0, 40);
     if (!q) return { users: [] };
     return {
-      users: db.prepare("SELECT id,username,display_name,avatar_attachment_id FROM users WHERE id<>? AND (username LIKE ? OR display_name LIKE ?) ORDER BY display_name LIMIT 20")
+      users: db.prepare("SELECT id,username,display_name,CASE WHEN avatar_attachment_id IS NULL THEN NULL ELSE '/api/media/'||avatar_attachment_id END AS avatar_url FROM users WHERE id<>? AND (username LIKE ? OR display_name LIKE ?) ORDER BY display_name LIMIT 20")
         .all(auth.user_id, `%${q}%`, `%${q}%`),
     };
   });
