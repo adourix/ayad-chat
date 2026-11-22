@@ -17,7 +17,7 @@ export function findSession(token: string) {
     {session_id:string;user_id:number;expires_at:string;username:string;display_name:string} | undefined;
 }
 export function touchSession(sessionId: string) {
-  db.prepare("UPDATE sessions SET last_seen_at=? WHERE id=?").run(new Date().toISOString(), sessionId);
+  db.prepare("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?").run(new Date().toISOString(), new Date(Date.now() + config.SESSION_TTL_DAYS * 86400_000).toISOString(), sessionId);
 }
 export function revokeSession(sessionId: string) {
   db.prepare("UPDATE sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL").run(new Date().toISOString(), sessionId);
