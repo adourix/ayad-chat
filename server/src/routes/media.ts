@@ -1,10 +1,8 @@
 import type {FastifyInstance} from "fastify";
-import {createWriteStream} from "node:fs";
-import {mkdir,stat,unlink} from "node:fs/promises";
+import {mkdir,stat,unlink,writeFile} from "node:fs/promises";
 import {createReadStream} from "node:fs";
 import {randomUUID} from "node:crypto";
 import {dirname,join,resolve} from "node:path";
-import {pipeline} from "node:stream/promises";
 import {db} from "../db/client.js";
 import {authenticate} from "../auth/guards.js";
 const imageTypes=new Map([["image/jpeg","jpg"],["image/png","png"],["image/webp","webp"],["image/gif","gif"]]);
@@ -19,16 +17,14 @@ export async function registerMediaRoutes(app:FastifyInstance){
   const ext=imageTypes.get(mime)||videoTypes.get(mime);if(!ext)return reply.code(415).send({error:"unsupported_media_type"});
   const max=imageTypes.has(mime)?imageMax:videoMax;
   const declared=Number(request.headers["content-length"]||0);if(declared>max)return reply.code(413).send({error:"media_too_large"});
-  const key=randomUUID()+"."+ext,fullPath=join(mediaDir,key);let size=0;
-  const sink=createWriteStream(fullPath,{flags:"wx"});
+  const buffer=request.body as Buffer;if(!Buffer.isBuffer(buffer)||buffer.length===0)return reply.code(400).send({error:"empty_media"});if(buffer.length>max)return reply.code(413).send({error:"media_too_large"});
+  const key=randomUUID()+"."+ext,fullPath=join(mediaDir,key),size=buffer.length;
   try{
-   const source=request.raw;
-   source.on("data",(chunk:Buffer)=>{size+=chunk.length;if(size>max)source.destroy(new Error("media_too_large"));});
-   await pipeline(source,sink);
-   if(size===0)return reply.code(400).send({error:"empty_media"});
+   await writeFile(fullPath,buffer,{flag:"wx"});
    const created=db.prepare("INSERT INTO attachments(uploader_id,mime,size,storage_key) VALUES(?,?,?,?)").run(auth.user_id,mime,size,key);
-   return reply.code(201).send({id:Number(created.lastInsertRowid),mime,size,url:"/api/media/"+Number(created.lastInsertRowid)});
-  }catch(error){await unlink(fullPath).catch(()=>{});if((error as Error).message==="media_too_large")return reply.code(413).send({error:"media_too_large"});throw error;}
+   const id=Number(created.lastInsertRowid);
+   return reply.code(201).send({id,mime,size,url:"/api/media/"+id});
+  }catch(error){await unlink(fullPath).catch(()=>{});throw error;}
  });
  app.get("/api/media/:id",async(request,reply)=>{
   const auth=await authenticate(request);if(!auth)return reply.code(401).send({error:"unauthorized"});
