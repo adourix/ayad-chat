@@ -25,9 +25,10 @@ function messageRecord(id:number){
 }
 function hydrate(record:Record<string,unknown>|undefined){
  if(!record)return record;
- const attachmentId=record.attachment_id as number|undefined;
- if(!attachmentId)return record;
- return {...record,attachment:{id:attachmentId,mime:record.attachment_mime,size:record.attachment_size,width:record.attachment_width??null,height:record.attachment_height??null,duration_ms:record.attachment_duration??null,url:`/api/media/${attachmentId}`}};
+ const id=Number(record.id);const reactions=db.prepare("SELECT user_id,emoji FROM reactions WHERE message_id=? ORDER BY emoji").all(id) as {user_id:number;emoji:string}[];
+ const base={...record,reactions};const attachmentId=record.attachment_id as number|undefined;
+ if(!attachmentId)return base;
+ return {...base,attachment:{id:attachmentId,mime:record.attachment_mime,size:record.attachment_size,width:record.attachment_width??null,height:record.attachment_height??null,duration_ms:record.attachment_duration??null,url:`/api/media/${attachmentId}`}};
 }
 export function attachWebSocket(app:FastifyInstance){
  const wss=new WebSocketServer({noServer:true,maxPayload:16*1024});
@@ -68,6 +69,28 @@ export function attachWebSocket(app:FastifyInstance){
     if(read){db.prepare("UPDATE conversation_members SET last_read_id=MAX(last_read_id,?) WHERE conversation_id=? AND user_id=?").run(read,msg.conversation_id,client.userId);}
     broadcastConversation(msg.conversation_id,{t:"receipt",conversation_id:msg.conversation_id,user_id:client.userId,delivered_up_to:delivered,read_up_to:read});
     return;
+   }
+   if(msg.t==="typing"){if(!member(msg.conversation_id,client.userId)){send(client,{t:"error",code:"forbidden"});return;}broadcastConversation(msg.conversation_id,{t:"typing",conversation_id:msg.conversation_id,user_id:client.userId,on:msg.on},client);return;}
+   if(msg.t==="msg.edit"){
+    const membership=member(msg.conversation_id,client.userId);if(!membership){send(client,{t:"error",code:"forbidden"});return;}
+    const target=db.prepare("SELECT id,sender_id,created_at,deleted_at FROM messages WHERE id=? AND conversation_id=?").get(msg.id,msg.conversation_id) as {id:number;sender_id:number;created_at:string;deleted_at:string|null}|undefined;
+    if(!target||target.sender_id!==client.userId||target.deleted_at){send(client,{t:"error",code:"cannot_edit"});return;}
+    if(Date.now()-new Date(target.created_at).getTime()>15*60*1000){send(client,{t:"error",code:"edit_expired"});return;}
+    const rev=nextRevision(),editedAt=new Date().toISOString();db.prepare("UPDATE messages SET body=?,edited_at=?,rev=? WHERE id=?").run(msg.body,editedAt,rev,msg.id);
+    const record=hydrate(messageRecord(msg.id));broadcastConversation(msg.conversation_id,{t:"msg.update",message:record});return;
+   }
+   if(msg.t==="msg.delete"){
+    const membership=member(msg.conversation_id,client.userId);if(!membership){send(client,{t:"error",code:"forbidden"});return;}
+    const target=db.prepare("SELECT id,sender_id,deleted_at FROM messages WHERE id=? AND conversation_id=?").get(msg.id,msg.conversation_id) as {id:number;sender_id:number;deleted_at:string|null}|undefined;
+    if(!target||target.sender_id!==client.userId||target.deleted_at){send(client,{t:"error",code:"cannot_delete"});return;}
+    const rev=nextRevision(),deletedAt=new Date().toISOString();db.prepare("UPDATE messages SET body='',deleted_at=?,rev=? WHERE id=?").run(deletedAt,rev,msg.id);
+    const record=hydrate(messageRecord(msg.id));broadcastConversation(msg.conversation_id,{t:"msg.update",message:record});return;
+   }
+   if(msg.t==="react"){
+    if(!member(msg.conversation_id,client.userId)){send(client,{t:"error",code:"forbidden"});return;}
+    const target=db.prepare("SELECT id FROM messages WHERE id=? AND conversation_id=? AND deleted_at IS NULL").get(msg.id,msg.conversation_id);if(!target){send(client,{t:"error",code:"message_not_found"});return;}
+    db.prepare("DELETE FROM reactions WHERE message_id=? AND user_id=?").run(msg.id,client.userId);if(msg.emoji)db.prepare("INSERT OR IGNORE INTO reactions(message_id,user_id,emoji) VALUES(?,?,?)").run(msg.id,client.userId,msg.emoji);
+    const record=hydrate(messageRecord(msg.id));broadcastConversation(msg.conversation_id,{t:"msg.update",message:record});return;
    }
    if(msg.t==="msg.send"){
     const membership=member(msg.conversation_id,client.userId);if(!membership){send(client,{t:"error",code:"forbidden",ref:msg.client_id});return;}
