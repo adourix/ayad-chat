@@ -113,3 +113,10 @@ END;
 
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 INSERT OR IGNORE INTO meta(key, value) VALUES ('rev', '0');
+
+CREATE TABLE IF NOT EXISTS conversation_pins (
+ conversation_id INTEGER PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+ message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+ pinned_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ pinned_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
