@@ -14,6 +14,7 @@ import {registerMessageRoutes} from "./routes/messages.js";
 import {registerUserRoutes} from "./routes/users.js";
 import {registerMediaRoutes} from "./routes/media.js";
 import {attachWebSocket} from "./realtime/wsHub.js";
+import {cleanupSessions} from "./auth/session.js";
 
 const app=Fastify({logger:{level:config.LOG_LEVEL},trustProxy:["127.0.0.1","::1"],bodyLimit:25*1024*1024});
 for(const mediaType of ["application/octet-stream","image/jpeg","image/png","image/webp","image/gif","video/mp4","video/webm","video/quicktime"]){
@@ -27,6 +28,7 @@ app.addHook("onRequest",async(request,reply)=>{
  const origin=request.headers.origin;
  if(!origin||!config.allowedOrigins.has(origin))return reply.code(403).send({error:"origin_not_allowed"});
 });
+cleanupSessions();const sessionCleanupTimer=setInterval(cleanupSessions,24*60*60*1000);sessionCleanupTimer.unref();app.addHook("onClose",async()=>clearInterval(sessionCleanupTimer));
 await registerHealthRoutes(app);
 await registerAuthRoutes(app);
 await registerConversationRoutes(app);
